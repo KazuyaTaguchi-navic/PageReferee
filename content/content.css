@@ -1,0 +1,309 @@
+#hinban-referee-panel {
+  all: initial;
+  position: fixed;
+  right: 20px;
+  top: 20px;
+  width: 340px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(30, 41, 59, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #f1f5f9;
+  font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  z-index: 2147483647;
+  overflow: hidden;
+}
+
+#hinban-referee-panel.hr-collapsed .hr-body {
+  display: none;
+}
+
+#hinban-referee-panel * {
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+#hinban-referee-panel .hr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: rgba(15, 23, 42, 0.75);
+  cursor: move;
+  user-select: none;
+}
+
+#hinban-referee-panel .hr-title {
+  font-weight: bold;
+}
+
+#hinban-referee-panel .hr-header-btns button {
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 13px;
+}
+#hinban-referee-panel .hr-header-btns button:hover {
+  color: #ffffff;
+}
+
+#hinban-referee-panel .hr-body {
+  padding: 10px;
+  overflow-y: auto;
+}
+
+#hinban-referee-panel .hr-datastatus {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+
+#hinban-referee-panel .hr-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+#hinban-referee-panel .hr-btn-check {
+  flex: 7;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.6), rgba(22, 163, 74, 0.6));
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(34, 197, 94, 0.7);
+  border-radius: 8px;
+  color: #ffffff;
+  padding: 14px 12px;
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.35);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+#hinban-referee-panel .hr-btn-check:hover {
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.7), rgba(34, 197, 94, 0.7));
+  box-shadow: 0 6px 18px rgba(34, 197, 94, 0.5);
+}
+#hinban-referee-panel .hr-btn-check:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4);
+}
+#hinban-referee-panel .hr-btn-check:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+#hinban-referee-panel .hr-btn-check-running {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.6), rgba(21, 128, 61, 0.6));
+}
+
+#hinban-referee-panel .hr-btn-secondary {
+  flex: 3;
+  background: rgba(100, 116, 139, 0.35);
+  border: 1px solid #64748b;
+  border-radius: 8px;
+  color: #f1f5f9;
+  padding: 6px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#hinban-referee-panel .hr-btn-secondary:hover {
+  background: rgba(100, 116, 139, 0.55);
+  color: #ffffff;
+}
+
+#hinban-referee-panel .hr-progress {
+  margin-bottom: 8px;
+}
+#hinban-referee-panel .hr-progress-track {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+#hinban-referee-panel .hr-progress-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #22d3ee, #2563eb);
+  transition: width 0.25s ease-out;
+}
+#hinban-referee-panel .hr-progress-label {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+#hinban-referee-panel .hr-picker-banner {
+  background: rgba(34, 211, 238, 0.15);
+  border: 1px solid #22d3ee;
+  color: #a5f3fc;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+#hinban-referee-panel .hr-summary {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+#hinban-referee-panel .hr-card {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 8px;
+  cursor: pointer;
+  font-weight: bold;
+  text-align: center;
+  white-space: nowrap;
+}
+#hinban-referee-panel .hr-card-label {
+  font-size: 12px;
+  white-space: nowrap;
+}
+#hinban-referee-panel .hr-card-count {
+  font-size: 14px;
+}
+#hinban-referee-panel .hr-card-count span {
+  font-size: 16px;
+  margin-right: 1px;
+}
+#hinban-referee-panel .hr-card-red {
+  background: rgba(220, 38, 38, 0.25);
+  border: 1px solid #dc2626;
+}
+#hinban-referee-panel .hr-card-yellow {
+  background: rgba(250, 204, 21, 0.25);
+  border: 1px solid #facc15;
+}
+
+#hinban-referee-panel .hr-findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+#hinban-referee-panel .hr-finding {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+#hinban-referee-panel .hr-finding:hover {
+  outline: 1px solid #94a3b8;
+}
+#hinban-referee-panel .hr-finding-text {
+  flex: 1;
+}
+#hinban-referee-panel .hr-finding-copy {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+#hinban-referee-panel .hr-finding-copy:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+#hinban-referee-panel .hr-finding-red {
+  background: rgba(220, 38, 38, 0.15);
+}
+#hinban-referee-panel .hr-finding-yellow {
+  background: rgba(250, 204, 21, 0.15);
+}
+#hinban-referee-panel .hr-finding-empty {
+  color: #4ade80;
+  padding: 8px;
+  text-align: center;
+}
+
+#hinban-referee-panel .hr-suggestions {
+  margin-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 8px;
+}
+#hinban-referee-panel .hr-suggestions-title {
+  font-size: 11px;
+  color: #c4b5fd;
+  margin-bottom: 6px;
+}
+#hinban-referee-panel .hr-suggestion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+}
+#hinban-referee-panel .hr-suggestion {
+  padding: 6px 8px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  background: rgba(129, 140, 248, 0.15);
+  border: 1px solid rgba(129, 140, 248, 0.4);
+}
+#hinban-referee-panel .hr-suggestion:hover {
+  background: rgba(129, 140, 248, 0.25);
+}
+
+/* ハイライトオーバーレイ（ページ側の要素の上に重ねる） */
+.hr-highlight-overlay {
+  position: fixed;
+  pointer-events: none;
+  z-index: 2147483646;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.25s ease-in-out;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.6);
+}
+.hr-highlight-overlay.hr-visible {
+  opacity: 1;
+}
+.hr-highlight-overlay.hr-severity-red {
+  background: rgba(220, 38, 38, 0.35);
+}
+.hr-highlight-overlay.hr-severity-yellow {
+  background: rgba(250, 204, 21, 0.4);
+}
+
+/* 照準（要素マッピング）モード */
+body.hr-picker-active,
+body.hr-picker-active * {
+  cursor: crosshair !important;
+}
+.hr-picker-hover {
+  outline: 2px solid #22d3ee !important;
+  outline-offset: 1px;
+}

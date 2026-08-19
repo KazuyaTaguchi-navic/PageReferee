@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>ページレフェリー 設定</title>
+<link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <button type="button" id="close-tab-btn" class="close-tab-btn">✕ 閉じる</button>
+  <h1>🚩 ページレフェリー 設定</h1>
+  <p class="hint">
+    通販する蔵の商品編集ページで拡張機能のボタンを押すと確認パネルが開きます。<br />
+    ここでは「管理表」「車種別タグ表」の読み込みと、列の対応付け・重大度（赤／黄）を設定します。クリックすると各項目が開きます。
+  </p>
+
+  <details class="settings-section">
+    <summary><h2>① 管理表ファイル（毎月更新）</h2></summary>
+    <p class="hint">Googleドライブ等からダウンロードした管理表(.xlsx)を選択してください。ファイルが更新されたら選び直すだけで反映されます。</p>
+    <input type="file" id="mgmt-file" accept=".xlsx" />
+    <div id="mgmt-status" class="status"></div>
+    <div id="mgmt-sheets"></div>
+    <button type="button" id="mgmt-save" class="btn-primary" style="display:none;">商品シート設定を保存</button>
+  </details>
+
+  <details class="settings-section">
+    <summary><h2>② 車種別タグ表ファイル</h2></summary>
+    <p class="hint">車種別タグの一覧表(.xlsx)を選択してください（通常は固定ですが、更新があれば選び直してください）。</p>
+    <input type="file" id="tag-file" accept=".xlsx" />
+    <div id="tag-status" class="status"></div>
+
+    <h3>自社品番→タグの対応（★リスト）</h3>
+    <p class="hint">すでにタグが割り当て済みの商品を、自社品番から直接照合するための設定です。</p>
+    <div id="tag-sheet-config"></div>
+
+    <h3>車種名→タグの辞書（★タグ一覧・タグ候補の自動提示用）</h3>
+    <p class="hint">
+      まだタグが割り当てられていない新商品でも、商品名・説明文に出てくる車種名からタグ候補を推測して表示します
+      （キーワード一致による推定のため、確認パネルの候補は必ず内容を見て判断してください）。
+    </p>
+    <div id="tagdict-sheet-config"></div>
+
+    <button type="button" id="tag-save" class="btn-primary" style="display:none;">タグ表設定を保存</button>
+  </details>
+
+  <details class="settings-section">
+    <summary><h2>③ ページ側の項目マッピング</h2></summary>
+    <p class="hint">
+      通販する蔵の実ページで確認済みの項目はあらかじめ設定済みです。項目を追加・変更したいときは、
+      対象のページを開いた状態で🚩ボタンを押してパネルを表示してから、下の「指定する」を押してください。
+      自動でそのページに切り替わるので、対象の入力欄をクリックすると割り当てられます。
+    </p>
+    <div id="fieldmap-target" class="status"></div>
+    <div id="fieldmap-list"></div>
+    <div class="add-row">
+      <input type="text" id="fieldmap-new-key" placeholder="新しい項目名（例: 楽天カテゴリ1）" />
+      <button type="button" id="fieldmap-new-btn">追加して指定する</button>
+    </div>
+  </details>
+
+  <details class="settings-section">
+    <summary><h2>④ 重大度設定（レッドカード／イエローカード）</h2></summary>
+    <p class="hint">
+      通販する蔵の全項目を表示しています。不一致が見つかったときにレッドカード（重大）／イエローカード（軽微）のどちらにするか、
+      または「－（なし）」でそもそもチェックしないかを項目ごとに設定できます。
+    </p>
+    <div id="severity-list"></div>
+  </details>
+
+  <details class="settings-section">
+    <summary><h2>⑤ モールURLのひな形（正しいURLをコピーする機能で使用）</h2></summary>
+    <p class="hint">
+      ヤフー側に楽天のURL、楽天側にヤフーのURLが混ざっていた場合に「正しいURL」を📋ボタンでコピーできるようにするためのひな形です。
+      <code>{code}</code> の部分が自社品番に置き換わります。ストアのURLが変わったときはここを更新してください。
+    </p>
+    <div class="map-grid">
+      <label>楽天商品URL</label>
+      <input type="text" id="url-template-rakuten" style="width:100%;" />
+      <label>ヤフー商品URL</label>
+      <input type="text" id="url-template-yahoo" style="width:100%;" />
+    </div>
+    <button type="button" id="url-template-save" class="btn-primary">URLひな形を保存</button>
+    <div id="url-template-status" class="status"></div>
+  </details>
+
+  <details class="settings-section">
+    <summary><h2>⑥ 設定のエクスポート・インポート</h2></summary>
+    <p class="hint">
+      列マッピング・項目マッピング・重大度設定をJSONとして書き出せます。他の担当者はこのJSONを読み込むだけで同じ設定が使えます。
+      （管理表・タグ表のファイル自体は含まれません。各自でファイルを選択してください）
+    </p>
+    <button type="button" id="export-btn">エクスポート（クリップボードにコピー）</button>
+    <textarea id="export-area" rows="6" placeholder="ここにJSONを貼り付けて「インポート」を押してください"></textarea>
+    <button type="button" id="import-btn">インポート</button>
+    <div id="import-status" class="status"></div>
+  </details>
+
+  <script src="../lib/xlsx.full.min.js"></script>
+  <script src="../lib/storage.js"></script>
+  <script src="../lib/workbook.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
