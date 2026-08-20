@@ -277,6 +277,10 @@
 #hinban-referee-panel .hr-suggestion:hover {
   background: rgba(129, 140, 248, 0.25);
 }
+#hinban-referee-panel .hr-suggestion-copied {
+  background: rgba(74, 222, 128, 0.25);
+  border-color: rgba(74, 222, 128, 0.6);
+}
 
 /* ハイライトオーバーレイ（ページ側の要素の上に重ねる） */
 .hr-highlight-overlay {

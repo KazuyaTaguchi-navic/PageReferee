@@ -92,6 +92,9 @@
       janCode: valueOf(row, '[name="pd_jancode[]"]'),
       shelfNumber: valueOf(row, '[name="shelf_number[]"]'),
       asin: valueOf(row, '[name="a__asin_code[]"]'),
+      makerSize: valueOf(row, '[name="pd_size_code[]"]'),
+      maxPoint: valueOf(row, '[name="max_point[]"]'),
+      orderPoint: valueOf(row, '[name="order_point[]"]'),
     }));
   }
 
@@ -227,7 +230,7 @@
     <div class="hr-header" id="hr-drag-handle">
       <span class="hr-title">🚩 ページレフェリー</span>
       <span class="hr-header-btns">
-        <button type="button" id="hr-btn-minimize" title="最小化">▁</button>
+        <button type="button" id="hr-btn-minimize" title="最小化">▾</button>
         <button type="button" id="hr-btn-close" title="閉じる">✕</button>
       </span>
     </div>
@@ -293,8 +296,12 @@
     });
   })();
 
-  panel.querySelector("#hr-btn-minimize").addEventListener("click", () => {
-    panel.classList.toggle("hr-collapsed");
+  panel.querySelector("#hr-btn-minimize").addEventListener("click", (e) => {
+    const collapsed = panel.classList.toggle("hr-collapsed");
+    const btn = e.currentTarget;
+    // 開いている間は「▾（押すと最小化）」、最小化中は「▸（押すと展開）」で見分けられるようにする
+    btn.textContent = collapsed ? "▸" : "▾";
+    btn.title = collapsed ? "展開" : "最小化";
   });
   panel.querySelector("#hr-btn-close").addEventListener("click", () => {
     panel.remove();
@@ -397,7 +404,31 @@
     };
   }
 
-  function renderTagCandidates(candidates, fieldMap) {
+  // タグ候補はクリックすると商品タグ欄ではなく各説明文欄に貼り付けるためのものなので、
+  // クリック時はフォーカス移動ではなくタグ文字列のクリップボードコピーを行う。
+  async function copyTextToClipboard(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch (err) {
+      // クリップボードAPIが使えない環境向けのフォールバック
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    try {
+      document.execCommand("copy");
+    } catch (err) {
+      console.error("[ページレフェリー] タグのコピーに失敗しました", err);
+    }
+    document.body.removeChild(textarea);
+  }
+
+  function renderTagCandidates(candidates) {
     const container = panel.querySelector("#hr-suggestions");
     const list = panel.querySelector("#hr-suggestion-list");
     list.innerHTML = "";
@@ -412,10 +443,17 @@
       const li = document.createElement("li");
       li.className = "hr-suggestion";
       const categoryLabel = c.category ? `（${c.category}）` : "";
-      li.textContent = `${c.tag}${categoryLabel} ― 「${c.matchedKeyword}」に一致`;
+      const baseLabel = `${c.tag}${categoryLabel} ― 「${c.matchedKeyword}」に一致`;
+      li.textContent = baseLabel;
+      li.title = "クリックでタグをコピー";
       li.addEventListener("click", () => {
-        const target = fieldMap["商品タグ"] && document.querySelector(fieldMap["商品タグ"].selector);
-        if (target) highlightElement(target, "yellow");
+        copyTextToClipboard(c.tag);
+        li.textContent = `${c.tag} をコピーしました`;
+        li.classList.add("hr-suggestion-copied");
+        setTimeout(() => {
+          li.textContent = baseLabel;
+          li.classList.remove("hr-suggestion-copied");
+        }, 1200);
       });
       list.appendChild(li);
     });
@@ -483,12 +521,21 @@
         );
       }
 
+      // 管理表の「コピー元」列が実際のコピー元と食い違っていても検出できるように、
+      // 同じメーカー（自社品番の接頭辞が同じ）の他商品の品番一覧も引いておく
+      const siblingPartNumbers = rules.findSiblingPartNumbers(
+        companyCode,
+        state.managementWorkbook,
+        state.productSheetConfigs
+      );
+
       setProgress(85, "判定中…");
       await nextFrame();
       const findings = rules.runChecks({
         domValues,
         managementMatch,
         copySourceMatch,
+        siblingPartNumbers,
         requiredTags,
         severityMap: state.severity,
         equalityPairs: storage.EQUALITY_PAIRS,
@@ -503,7 +550,7 @@
       const actualTags = rules.parseItemTags(domValues["商品タグ"]);
       const candidateText = storage.TAG_CANDIDATE_TEXT_KEYS.map((k) => domValues[k] || "").join("\n");
       const candidates = rules.getTagCandidates(candidateText, state.tagWorkbook, state.tagDictionaryConfig, actualTags);
-      renderTagCandidates(candidates, currentFieldMap);
+      renderTagCandidates(candidates);
 
       setProgress(100, "完了");
       await new Promise((resolve) => setTimeout(resolve, 300));
