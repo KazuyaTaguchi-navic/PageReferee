@@ -276,8 +276,14 @@
     let offsetY = 0;
 
     function onMouseMove(e) {
-      panel.style.left = e.clientX - offsetX + "px";
-      panel.style.top = e.clientY - offsetY + "px";
+      // ブラウザの表示領域外にドラッグして見失わないよう、パネル全体が画面内に
+      // 収まる範囲にクランプする。
+      const maxLeft = Math.max(0, window.innerWidth - panel.offsetWidth);
+      const maxTop = Math.max(0, window.innerHeight - panel.offsetHeight);
+      const left = Math.min(Math.max(e.clientX - offsetX, 0), maxLeft);
+      const top = Math.min(Math.max(e.clientY - offsetY, 0), maxTop);
+      panel.style.left = left + "px";
+      panel.style.top = top + "px";
     }
     function onMouseUp() {
       window.removeEventListener("mousemove", onMouseMove);
@@ -285,9 +291,18 @@
     }
 
     handle.addEventListener("mousedown", (e) => {
+      // 最小化/閉じるボタンはヘッダーの子要素なので、そこへのクリックはドラッグ開始
+      // として扱わない（ボタン操作のたびにパネル位置がリセットされるのを防ぐ）。
+      if (e.target.closest("button")) return;
       const rect = panel.getBoundingClientRect();
       offsetX = e.clientX - rect.left;
       offsetY = e.clientY - rect.top;
+      // right/bottomをautoにするのと同じタイミングでleft/topを明示的に設定する。
+      // ここでleftを未設定のままにすると、次のmousemoveが来るまでの一瞬
+      // left:auto; right:auto になり、position:fixedの要素が静的位置（＝左上）に
+      // 引っ張られて見た目が一瞬ジャンプすることがある。
+      panel.style.left = rect.left + "px";
+      panel.style.top = rect.top + "px";
       panel.style.right = "auto";
       panel.style.bottom = "auto";
       window.addEventListener("mousemove", onMouseMove);
