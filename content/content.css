@@ -281,6 +281,18 @@
   background: rgba(74, 222, 128, 0.25);
   border-color: rgba(74, 222, 128, 0.6);
 }
+/* 車種別タグの有無の案内。ボタンではないので枠は付けず文字色だけで区別する */
+#hinban-referee-panel .hr-tag-status {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+#hinban-referee-panel .hr-tag-status-missing {
+  color: #f87171;
+}
+#hinban-referee-panel .hr-tag-status-ok {
+  color: #4ade80;
+}
 
 /* ハイライトオーバーレイ（ページ側の要素の上に重ねる） */
 .hr-highlight-overlay {

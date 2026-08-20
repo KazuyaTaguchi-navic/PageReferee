@@ -213,6 +213,11 @@
       return document.querySelector(".sku_tbl") || null;
     }
 
+    const categoryTypeMatch = findingKey.match(/^category_type_mismatch_(.+)$/);
+    if (categoryTypeMatch) {
+      return tryKey(categoryTypeMatch[1]);
+    }
+
     const skuMatch = findingKey.match(/^sku_.*_(\d+)$/);
     if (skuMatch) {
       const idx = Number(skuMatch[1]);
@@ -257,7 +262,8 @@
       </div>
       <ul class="hr-findings" id="hr-findings"></ul>
       <div class="hr-suggestions" id="hr-suggestions" style="display:none;">
-        <div class="hr-suggestions-title">🔎 タグ候補（要確認・キーワード一致による推定です）</div>
+        <div class="hr-tag-status" id="hr-tag-status" style="display:none;"></div>
+        <div class="hr-suggestions-title">🔎 車種別タグ候補（要確認・キーワード一致による推定です）</div>
         <ul class="hr-suggestion-list" id="hr-suggestion-list"></ul>
       </div>
     </div>
@@ -443,17 +449,43 @@
     document.body.removeChild(textarea);
   }
 
-  function renderTagCandidates(candidates) {
+  // vehicleTagStatus: { rakutenOk, yahooOk, tags } (rules.getVehicleTagStatus の戻り値)
+  function buildVehicleTagStatusMessage(status) {
+    if (status.rakutenOk && status.yahooOk) {
+      return { text: `車種別タグ${status.tags.join("、")}が設置されています。`, ok: true };
+    }
+    const missingMalls = [];
+    if (!status.rakutenOk) missingMalls.push("楽天");
+    if (!status.yahooOk) missingMalls.push("ヤフー");
+    return { text: `車種別タグが設置されていません。（${missingMalls.join("・")}）`, ok: false };
+  }
+
+  function renderTagCandidates(candidates, vehicleTagStatus) {
     const container = panel.querySelector("#hr-suggestions");
+    const title = panel.querySelector("#hr-suggestions .hr-suggestions-title");
     const list = panel.querySelector("#hr-suggestion-list");
+    const statusEl = panel.querySelector("#hr-tag-status");
     list.innerHTML = "";
 
-    if (!candidates || candidates.length === 0) {
+    const hasCandidates = candidates && candidates.length > 0;
+    const hasStatus = !!vehicleTagStatus;
+
+    if (!hasCandidates && !hasStatus) {
       container.style.display = "none";
       return;
     }
 
     container.style.display = "block";
+    if (hasStatus) {
+      const { text, ok } = buildVehicleTagStatusMessage(vehicleTagStatus);
+      statusEl.style.display = "block";
+      statusEl.textContent = text;
+      statusEl.className = "hr-tag-status " + (ok ? "hr-tag-status-ok" : "hr-tag-status-missing");
+    } else {
+      statusEl.style.display = "none";
+    }
+    title.style.display = hasCandidates ? "block" : "none";
+    list.style.display = hasCandidates ? "block" : "none";
     candidates.forEach((c) => {
       const li = document.createElement("li");
       li.className = "hr-suggestion";
@@ -546,12 +578,31 @@
 
       setProgress(85, "判定中…");
       await nextFrame();
+
+      // 車種別タグは#item_tag欄ではなく各説明文・フリースペースの本文に手打ちで挿入する
+      // 運用のため、本文から実際のタグを抽出しておく（tag_missing/tag_extra・推奨候補との
+      // 突き合わせ・候補提案での除外の両方に使う）
+      const actualVehicleTags = rules.findActualVehicleTags(domValues);
+      const candidateText = storage.TAG_CANDIDATE_TEXT_KEYS.map((k) => domValues[k] || "").join("\n");
+      // 表示用（車種別タグ候補パネル）は上位3件に絞るが、既存タグが「妥当か」の判定には
+      // 上位3件だけでなく一致する全候補を使う必要がある（表示用に絞ると、同じ車種名で
+      // 系違いのタグ等に競り負けて本来正しいタグまで「候補にない」と誤検知するため）。
+      const tagCandidates = rules.getTagCandidates(
+        candidateText,
+        state.tagWorkbook,
+        state.tagDictionaryConfig,
+        actualVehicleTags
+      );
+      const allTagCandidates = rules.findAllTagCandidates(candidateText, state.tagWorkbook, state.tagDictionaryConfig, []);
+
       const findings = rules.runChecks({
         domValues,
         managementMatch,
         copySourceMatch,
         siblingPartNumbers,
         requiredTags,
+        actualVehicleTags,
+        tagCandidateCodes: allTagCandidates.map((c) => c.tag),
         severityMap: state.severity,
         equalityPairs: storage.EQUALITY_PAIRS,
         fixedRuleChecks: storage.FIXED_RULE_CHECKS,
@@ -562,10 +613,8 @@
 
       renderFindings(findings, currentFieldMap);
 
-      const actualTags = rules.parseItemTags(domValues["商品タグ"]);
-      const candidateText = storage.TAG_CANDIDATE_TEXT_KEYS.map((k) => domValues[k] || "").join("\n");
-      const candidates = rules.getTagCandidates(candidateText, state.tagWorkbook, state.tagDictionaryConfig, actualTags);
-      renderTagCandidates(candidates);
+      const vehicleTagStatus = rules.getVehicleTagStatus(domValues);
+      renderTagCandidates(tagCandidates, vehicleTagStatus);
 
       setProgress(100, "完了");
       await new Promise((resolve) => setTimeout(resolve, 300));
