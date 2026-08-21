@@ -369,11 +369,10 @@
 
   function renderDataStatus(state) {
     const el = panel.querySelector("#hr-datastatus");
-    const mgmt = state.managementWorkbook
-      ? `管理表: ${state.managementWorkbook.fileName}`
-      : "管理表: 未読み込み";
-    const tag = state.tagWorkbook ? `／タグ表: ${state.tagWorkbook.fileName}` : "／タグ表: 未読み込み";
-    el.textContent = mgmt + tag;
+    const mgmt = state.managementWorkbook ? state.managementWorkbook.fileName : "未読み込み";
+    const tag = state.tagWorkbook ? state.tagWorkbook.fileName : "未読み込み";
+    // ファイル名が長いと1行につながって見にくいため、管理表・タグ表を別の行にする
+    el.textContent = `管理表: ${mgmt}\nタグ表: ${tag}`;
   }
 
   function renderFindings(findings, fieldMap) {

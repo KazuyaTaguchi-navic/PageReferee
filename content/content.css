@@ -4,7 +4,10 @@
   right: 20px;
   top: 20px;
   width: 340px;
-  max-height: 70vh;
+  /* 中身（レッド/イエロー詳細・車種別タグ候補まで）は基本的に全部表示する。
+     小さいウィンドウ等で収まらない場合の保険として、パネル全体で1本だけ
+     縦スクロールバーを許容する（入れ子の個別スクロールバーは作らない）。 */
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
   background: rgba(30, 41, 59, 0.82);
@@ -18,7 +21,8 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
   z-index: 2147483647;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 #hinban-referee-panel.hr-collapsed .hr-body {
@@ -40,6 +44,10 @@
   background: rgba(15, 23, 42, 0.75);
   cursor: move;
   user-select: none;
+  /* パネル自体はもうoverflow:hiddenで角を切り取っていないため、ヘッダー側にも
+     丸みを付けておく（パネルのborder-radiusと同じ値）。 */
+  border-radius: 10px 10px 0 0;
+  flex-shrink: 0;
 }
 
 #hinban-referee-panel .hr-title {
@@ -65,14 +73,19 @@
 
 #hinban-referee-panel .hr-body {
   padding: 10px;
-  overflow-y: auto;
+  /* スクロールはパネル全体（#hinban-referee-panel）側の1本だけにまとめる。
+     ここで個別にoverflow-y:autoを持たせると、横方向がvisible→auto側に
+     引きずられて余計な横スクロールバーが出てしまうことがあるため持たせない。 */
+  overflow: visible;
+  overflow-wrap: anywhere;
 }
 
 #hinban-referee-panel .hr-datastatus {
-  font-size: 11px;
+  font-size: 10px;
   color: #94a3b8;
   margin-bottom: 8px;
   word-break: break-all;
+  white-space: pre-line;
 }
 
 #hinban-referee-panel .hr-actions {
@@ -268,8 +281,6 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 180px;
-  overflow-y: auto;
 }
 #hinban-referee-panel .hr-suggestion {
   padding: 6px 8px;
