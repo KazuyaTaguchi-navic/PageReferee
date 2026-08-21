@@ -28,5 +28,8 @@
     "storage",
     "unlimitedStorage",
     "tabs"
+  ],
+  "optional_host_permissions": [
+    "*://*/*"
   ]
 }

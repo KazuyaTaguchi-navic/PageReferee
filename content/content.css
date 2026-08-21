@@ -44,9 +44,13 @@
 
 #hinban-referee-panel .hr-title {
   font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-#hinban-referee-panel .hr-header-btns button {
+#hinban-referee-panel .hr-header-btns button,
+#hinban-referee-panel .hr-btn-minimize {
   background: transparent;
   border: none;
   color: #cbd5e1;
@@ -54,7 +58,8 @@
   padding: 2px 6px;
   font-size: 13px;
 }
-#hinban-referee-panel .hr-header-btns button:hover {
+#hinban-referee-panel .hr-header-btns button:hover,
+#hinban-referee-panel .hr-btn-minimize:hover {
   color: #ffffff;
 }
 

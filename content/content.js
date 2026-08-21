@@ -233,9 +233,11 @@
   panel.id = "hinban-referee-panel";
   panel.innerHTML = `
     <div class="hr-header" id="hr-drag-handle">
-      <span class="hr-title">🚩 ページレフェリー</span>
+      <span class="hr-title">
+        🚩 ページレフェリー
+        <button type="button" id="hr-btn-minimize" class="hr-btn-minimize" title="最小化">▾</button>
+      </span>
       <span class="hr-header-btns">
-        <button type="button" id="hr-btn-minimize" title="最小化">▾</button>
         <button type="button" id="hr-btn-close" title="閉じる">✕</button>
       </span>
     </div>
@@ -276,12 +278,31 @@
   // したときや🚩ボタンを何度も押したときにパネルを作り直すたびリスナーが積み重なって
   // いってしまう（前のパネルはremove()されてもwindowのリスナーは残るため）。
   // ドラッグ中だけ付け、mouseupで必ず外す方式にする。
+  function setCollapsed(collapsed) {
+    panel.classList.toggle("hr-collapsed", collapsed);
+    const btn = panel.querySelector("#hr-btn-minimize");
+    // 開いている間は「▾（押すと最小化）」、最小化中は「▸（押すと展開）」で見分けられるようにする
+    btn.textContent = collapsed ? "▸" : "▾";
+    btn.title = collapsed ? "展開" : "最小化";
+  }
+
+  // ヘッダーのドラッグ開始〜終了の間に実際にマウスが動いたかどうか。
+  // ヘッダーのどこを押しても最小化/展開できるようにする際、ドラッグ操作の終わりに
+  // 誤って最小化/展開が発火しないようにするために使う。
+  let headerDragMoved = false;
+
   (function enableDrag() {
     const handle = panel.querySelector("#hr-drag-handle");
     let offsetX = 0;
     let offsetY = 0;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    const DRAG_THRESHOLD_PX = 4;
 
     function onMouseMove(e) {
+      if (!headerDragMoved && (Math.abs(e.clientX - dragStartX) > DRAG_THRESHOLD_PX || Math.abs(e.clientY - dragStartY) > DRAG_THRESHOLD_PX)) {
+        headerDragMoved = true;
+      }
       // ブラウザの表示領域外にドラッグして見失わないよう、パネル全体が画面内に
       // 収まる範囲にクランプする。
       const maxLeft = Math.max(0, window.innerWidth - panel.offsetWidth);
@@ -300,6 +321,9 @@
       // 最小化/閉じるボタンはヘッダーの子要素なので、そこへのクリックはドラッグ開始
       // として扱わない（ボタン操作のたびにパネル位置がリセットされるのを防ぐ）。
       if (e.target.closest("button")) return;
+      headerDragMoved = false;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
       const rect = panel.getBoundingClientRect();
       offsetX = e.clientX - rect.left;
       offsetY = e.clientY - rect.top;
@@ -315,14 +339,19 @@
       window.addEventListener("mouseup", onMouseUp);
       e.preventDefault();
     });
+
+    // 閉じるボタン付近を誤って押すリスクを減らすため、ヘッダーのどこを押しても
+    // （ボタン自体を除く）最小化/展開をトグルできるようにする。実際にドラッグした
+    // 場合（headerDragMovedがtrue）はトグルしない。
+    handle.addEventListener("click", (e) => {
+      if (e.target.closest("button")) return;
+      if (headerDragMoved) return;
+      setCollapsed(!panel.classList.contains("hr-collapsed"));
+    });
   })();
 
-  panel.querySelector("#hr-btn-minimize").addEventListener("click", (e) => {
-    const collapsed = panel.classList.toggle("hr-collapsed");
-    const btn = e.currentTarget;
-    // 開いている間は「▾（押すと最小化）」、最小化中は「▸（押すと展開）」で見分けられるようにする
-    btn.textContent = collapsed ? "▸" : "▾";
-    btn.title = collapsed ? "展開" : "最小化";
+  panel.querySelector("#hr-btn-minimize").addEventListener("click", () => {
+    setCollapsed(!panel.classList.contains("hr-collapsed"));
   });
   panel.querySelector("#hr-btn-close").addEventListener("click", () => {
     panel.remove();

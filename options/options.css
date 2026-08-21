@@ -148,6 +148,10 @@ button:hover {
   border-color: var(--accent);
   font-weight: bold;
 }
+.btn-secondary {
+  background: transparent;
+  color: var(--text, #333);
+}
 
 .sheet-card {
   border: 1px solid var(--border);

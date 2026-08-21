@@ -83,7 +83,20 @@
   </details>
 
   <details class="settings-section">
-    <summary><h2>⑥ 設定のエクスポート・インポート</h2></summary>
+    <summary><h2>⑥ 自動起動設定</h2></summary>
+    <p class="hint">
+      ここで指定したURLで始まるページを開くと、🚩ボタンを押さなくても自動的にパネルが表示されます。
+      アカウントごとに管理画面のURLが違うため、それぞれの環境に合わせて設定してください（未設定の場合は今まで通り🚩ボタンで開きます）。<br />
+      保存時にブラウザから「このサイトへのアクセスを許可しますか」という確認が出ます。許可すると反映されます。
+    </p>
+    <input type="text" id="auto-launch-url" style="width:100%;" placeholder="例: https://sv300.suruzo.biz/creer-1437/" />
+    <button type="button" id="auto-launch-save" class="btn-primary">許可して保存</button>
+    <button type="button" id="auto-launch-clear" class="btn-secondary">自動起動を解除</button>
+    <div id="auto-launch-status" class="status"></div>
+  </details>
+
+  <details class="settings-section">
+    <summary><h2>⑦ 設定のエクスポート・インポート</h2></summary>
     <p class="hint">
       列マッピング・項目マッピング・重大度設定をJSONとして書き出せます。他の担当者はこのJSONを読み込むだけで同じ設定が使えます。
       （管理表・タグ表のファイル自体は含まれません。各自でファイルを選択してください）

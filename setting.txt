@@ -1,0 +1,466 @@
+{
+  "productSheetConfigs": [
+    {
+      "columnMap": {
+        "SKU": "SKU\n※入力",
+        "コピー元": "コピー元",
+        "シリーズ": "シリーズ\n※選択",
+        "原価": "原価",
+        "品番": "品番\n※入力",
+        "売価税抜": "売価(税抜)",
+        "売価税込": "売価(税込)",
+        "定価税抜": "定価(税抜)",
+        "定価税込": "定価(税込)",
+        "特別加算金": "特別加算金",
+        "自社品番": "自社品番\n※自動",
+        "送料": "送料"
+      },
+      "sheetName": "管理表"
+    }
+  ],
+  "tagSheetConfig": {
+    "columnMap": {
+      "カテゴリ": "カテゴリ",
+      "タグ": "タグ",
+      "メーカー": "メーカー",
+      "自社品番": "自社品番",
+      "車種名": "車種名"
+    },
+    "sheetName": "★リスト"
+  },
+  "tagDictionaryConfig": {
+    "columnMap": {
+      "カテゴリ": "カテゴリ",
+      "タグ": "タグ",
+      "車種": "車種　",
+      "車種正式名称": "車種正式名称"
+    },
+    "sheetName": "★タグ一覧"
+  },
+  "domFieldMap": {
+    "自社品番": {
+      "attr": "value",
+      "selector": "#company_product_code",
+      "type": "single"
+    },
+    "メーカー品番": {
+      "attr": "value",
+      "selector": "[name=\"maker_product_code\"]",
+      "type": "single"
+    },
+    "商品名": {
+      "attr": "value",
+      "selector": "#product_name",
+      "type": "single"
+    },
+    "商品名略称": {
+      "attr": "value",
+      "selector": "[name=\"informality_name\"]",
+      "type": "single"
+    },
+    "メーカー品名": {
+      "attr": "value",
+      "selector": "[name=\"maker_product_name\"]",
+      "type": "single"
+    },
+    "メーカー希望小売価格": {
+      "attr": "value",
+      "selector": "#price",
+      "type": "single"
+    },
+    "販売価格": {
+      "attr": "value",
+      "selector": "#sale_price",
+      "type": "single"
+    },
+    "原価": {
+      "attr": "value",
+      "selector": "#genka_price",
+      "type": "single"
+    },
+    "個別送料": {
+      "attr": "value",
+      "selector": "#postage",
+      "type": "single"
+    },
+    "送料特別加算金額": {
+      "attr": "value",
+      "selector": "#postage_add_charge",
+      "type": "single"
+    },
+    "商品タグ": {
+      "attr": "value",
+      "selector": "#item_tag",
+      "type": "single"
+    },
+    "楽天商品管理番号": {
+      "attr": "value",
+      "selector": "#product_url_code",
+      "type": "single"
+    },
+    "楽天商品番号": {
+      "attr": "value",
+      "selector": "#rakuten_product_code",
+      "type": "single"
+    },
+    "楽天商品名": {
+      "attr": "value",
+      "selector": "#product_name_r",
+      "type": "single"
+    },
+    "楽天表示価格": {
+      "attr": "value",
+      "selector": "#price_r",
+      "type": "single"
+    },
+    "楽天販売価格": {
+      "attr": "value",
+      "selector": "#sale_price_r",
+      "type": "single"
+    },
+    "楽天配送方法セット管理番号": {
+      "attr": "value",
+      "selector": "#delivery_set_id",
+      "type": "single"
+    },
+    "楽天カタログID": {
+      "attr": "value",
+      "selector": "#catalog_id",
+      "type": "single"
+    },
+    "楽天注文ボタン": {
+      "attr": "value",
+      "selector": "[name=\"order_button_flg\"]:checked",
+      "type": "single"
+    },
+    "楽天PC用商品説明文": {
+      "attr": "value",
+      "selector": "#pc_product_explanation",
+      "type": "single"
+    },
+    "楽天モバイル用商品説明文": {
+      "attr": "value",
+      "selector": "#mobile_product_explanation",
+      "type": "single"
+    },
+    "楽天スマホ用商品説明文": {
+      "attr": "value",
+      "selector": "#smartphone_product_explanation",
+      "type": "single"
+    },
+    "ヤフー商品コード": {
+      "attr": "value",
+      "selector": "#code",
+      "type": "single"
+    },
+    "ヤフーJANコード": {
+      "attr": "value",
+      "selector": "#jan",
+      "type": "single"
+    },
+    "ヤフーページ公開": {
+      "attr": "value",
+      "selector": "[name=\"display\"]:checked",
+      "type": "single"
+    },
+    "Yahoo商品名": {
+      "attr": "value",
+      "selector": "#product_name_y",
+      "type": "single"
+    },
+    "ヤフー定価": {
+      "attr": "value",
+      "selector": "#original_price_y",
+      "type": "single"
+    },
+    "ヤフー通常販売価格": {
+      "attr": "value",
+      "selector": "#price_y",
+      "type": "single"
+    },
+    "Yahoo特価": {
+      "attr": "value",
+      "selector": "#sale_price_y",
+      "type": "single"
+    },
+    "Yahoo会員向け価格": {
+      "attr": "value",
+      "selector": "#member_price",
+      "type": "single"
+    },
+    "Yahooショッピング製品コード": {
+      "attr": "value",
+      "selector": "#yahoo_product_code",
+      "type": "single"
+    },
+    "Yahoo製品コード": {
+      "attr": "value",
+      "selector": "#product_code",
+      "type": "single"
+    },
+    "Yahoo重量": {
+      "attr": "value",
+      "selector": "#ship_weight",
+      "type": "single"
+    },
+    "Yahoo送料無料": {
+      "attr": "value",
+      "selector": "[name=\"delivery\"]:checked",
+      "type": "single"
+    },
+    "ヤフーキャッチコピー": {
+      "attr": "value",
+      "selector": "#headline",
+      "type": "single"
+    },
+    "ヤフー商品説明": {
+      "attr": "value",
+      "selector": "#caption",
+      "type": "single"
+    },
+    "ヤフー商品情報": {
+      "type": "single",
+      "selector": "#explanation_y",
+      "attr": "value"
+    },
+    "Yahooフリースペース1": {
+      "attr": "value",
+      "selector": "#additional1",
+      "type": "single"
+    },
+    "Yahooフリースペース2": {
+      "attr": "value",
+      "selector": "#additional2",
+      "type": "single"
+    },
+    "Yahooフリースペース3": {
+      "attr": "value",
+      "selector": "#additional3",
+      "type": "single"
+    },
+    "Yahooスマートフォン用フリースペース": {
+      "attr": "value",
+      "selector": "#sp_additional",
+      "type": "single"
+    },
+    "Amazon発送日数": {
+      "attr": "value",
+      "selector": "#pma_leadtime_to_ship",
+      "type": "single"
+    },
+    "Amazon配送パターン": {
+      "attr": "value",
+      "selector": "[name=\"pma_merchant_shipping_group_name\"]",
+      "type": "single"
+    },
+    "Amazon販売価格": {
+      "attr": "value",
+      "selector": "#pma_itemprice",
+      "type": "single"
+    },
+    "Amazonポイント": {
+      "attr": "value",
+      "selector": "#pma_standard_price_points",
+      "type": "single"
+    },
+    "Amazonメーカー希望小売価格": {
+      "attr": "value",
+      "selector": "#pma_msrp",
+      "type": "single"
+    },
+    "Amazon法人価格": {
+      "attr": "value",
+      "selector": "#pma_businessprice",
+      "type": "single"
+    },
+    "楽天掲載": {
+      "attr": "checked",
+      "selector": "#rakuten_rec_flg",
+      "type": "single"
+    },
+    "Yahoo掲載": {
+      "attr": "checked",
+      "selector": "#yahoo_rec_flg",
+      "type": "single"
+    },
+    "Amazon掲載": {
+      "attr": "checked",
+      "selector": "#amazon_rec_flg",
+      "type": "single"
+    },
+    "ヤフオク掲載": {
+      "attr": "checked",
+      "selector": "#yo1_yahoo_auction_rec_flg",
+      "type": "single"
+    },
+    "新ヤフオク掲載": {
+      "attr": "checked",
+      "selector": "#z__rec_flg",
+      "type": "single"
+    },
+    "楽天サイトカテゴリ1": {
+      "attr": "value",
+      "selector": "#category_1_all",
+      "type": "single"
+    },
+    "楽天サイトカテゴリ2": {
+      "type": "single",
+      "selector": "#category_name2",
+      "attr": "textContent"
+    },
+    "楽天サイトカテゴリ3": {
+      "type": "single",
+      "selector": "#category_name3",
+      "attr": "textContent"
+    },
+    "楽天サイトカテゴリ4": {
+      "type": "single",
+      "selector": "#category_name4",
+      "attr": "textContent"
+    },
+    "楽天サイトカテゴリ5": {
+      "type": "single",
+      "selector": "#category_name5",
+      "attr": "textContent"
+    },
+    "Yahooプロダクトカテゴリ": {
+      "attr": "value",
+      "selector": "#product_category",
+      "type": "single"
+    },
+    "Yahooサイトカテゴリ1": {
+      "type": "single",
+      "selector": "#category2_name1",
+      "attr": "textContent"
+    },
+    "Yahooサイトカテゴリ2": {
+      "type": "single",
+      "selector": "#category2_name2",
+      "attr": "textContent"
+    },
+    "Yahooサイトカテゴリ3": {
+      "type": "single",
+      "selector": "#category2_name3",
+      "attr": "textContent"
+    },
+    "Yahooサイトカテゴリ4": {
+      "type": "single",
+      "selector": "#category2_name4",
+      "attr": "textContent"
+    },
+    "Yahooサイトカテゴリ5": {
+      "type": "single",
+      "selector": "#category2_name5",
+      "attr": "textContent"
+    },
+    "楽天ジャンルID": {
+      "attr": "value",
+      "selector": "#rakuten_id",
+      "type": "single"
+    },
+    "楽天非製品属性タグ": {
+      "type": "single",
+      "selector": "#tag_id",
+      "attr": "value"
+    },
+    "楽天ポイント変倍率": {
+      "attr": "value",
+      "selector": "#point_magnification",
+      "type": "single"
+    },
+    "Yahoo一律ポイント区分": {
+      "attr": "value",
+      "selector": "[name=\"point_code_flg\"]:checked",
+      "type": "single"
+    },
+    "Yahoo商品別倍率指定": {
+      "attr": "value",
+      "selector": "#point_code_all",
+      "type": "single"
+    },
+    "楽天動画": {
+      "attr": "value",
+      "selector": "#movie_html",
+      "type": "single"
+    }
+  },
+  "severity": {
+    "自社品番": "red",
+    "メーカー品番": "red",
+    "メーカー品名": "red",
+    "商品名": "red",
+    "商品名略称": "red",
+    "メーカー希望小売価格": "red",
+    "原価": "red",
+    "販売価格": "yellow",
+    "楽天商品管理番号": "yellow",
+    "楽天商品番号": "yellow",
+    "楽天ジャンルID": "yellow",
+    "楽天カタログID": "yellow",
+    "楽天販売価格": "red",
+    "楽天商品名": "yellow",
+    "楽天配送方法セット管理番号": "red",
+    "楽天注文ボタン": "red",
+    "楽天PC用商品説明文": "yellow",
+    "楽天モバイル用商品説明文": "yellow",
+    "楽天スマホ用商品説明文": "yellow",
+    "楽天動画": "yellow",
+    "ヤフー商品コード": "yellow",
+    "Yahooプロダクトカテゴリ": "yellow",
+    "ヤフーページ公開": "red",
+    "Yahoo商品名": "yellow",
+    "ヤフー定価": "red",
+    "ヤフー通常販売価格": "red",
+    "ヤフーJANコード": "yellow",
+    "Yahoo製品コード": "yellow",
+    "Yahoo重量": "red",
+    "Yahoo送料無料": "red",
+    "Yahoo一律ポイント区分": "red",
+    "Yahoo商品別倍率指定": "red",
+    "ヤフーキャッチコピー": "yellow",
+    "ヤフー商品説明": "yellow",
+    "ヤフー商品情報": "yellow",
+    "Yahooフリースペース1": "yellow",
+    "Yahooフリースペース2": "yellow",
+    "Yahooフリースペース3": "yellow",
+    "Yahooスマートフォン用フリースペース": "yellow",
+    "楽天掲載": "red",
+    "Yahoo掲載": "red",
+    "Amazon掲載": "red",
+    "ヤフオク掲載": "red",
+    "新ヤフオク掲載": "red",
+    "Amazon配送パターン": "red",
+    "Amazon販売価格": "red",
+    "Amazonポイント": "red",
+    "Amazon発送日数": "yellow",
+    "商品タグ": "yellow",
+    "SKU情報": "red",
+    "楽天サイトカテゴリ整合性": "yellow",
+    "Yahooサイトカテゴリ整合性": "yellow",
+    "シリーズ整合性": "yellow",
+    "個別送料": "none",
+    "送料特別加算金額": "none",
+    "楽天表示価格": "none",
+    "楽天サイトカテゴリ1": "none",
+    "楽天サイトカテゴリ2": "none",
+    "楽天サイトカテゴリ3": "none",
+    "楽天サイトカテゴリ4": "none",
+    "楽天サイトカテゴリ5": "none",
+    "Yahooサイトカテゴリ1": "none",
+    "Yahooサイトカテゴリ2": "none",
+    "Yahooサイトカテゴリ3": "none",
+    "Yahooサイトカテゴリ4": "none",
+    "Yahooサイトカテゴリ5": "none",
+    "楽天ポイント変倍率": "none",
+    "Yahoo特価": "none",
+    "Yahoo会員向け価格": "none",
+    "Yahooショッピング製品コード": "none",
+    "Amazon法人価格": "none",
+    "Amazonメーカー希望小売価格": "none",
+    "楽天非製品属性タグ": "yellow"
+  },
+  "urlTemplates": {
+    "rakuten": "https://item.rakuten.co.jp/creer/{code}",
+    "yahoo": "https://store.shopping.yahoo.co.jp/creer-net/{code}"
+  }
+}

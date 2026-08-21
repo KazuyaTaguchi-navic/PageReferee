@@ -495,7 +495,72 @@
     urlTemplateStatus.textContent = "保存しました。";
   });
 
-  // ---------- ⑥ エクスポート・インポート ----------
+  // ---------- ⑥ 自動起動設定 ----------
+  // アカウントごとに管理画面のURLが違うため、指定したURLで始まるページでは
+  // 🚩ボタンを押さなくても自動的にパネルを表示できるようにする。ブラウザの権限モデル上、
+  // 新しいサイトへのアクセス許可はユーザー操作（クリック）を起点に要求する必要があるため、
+  // 保存ボタン押下時にchrome.permissions.requestを呼ぶ。
+
+  const autoLaunchUrlInput = document.getElementById("auto-launch-url");
+  const autoLaunchStatus = document.getElementById("auto-launch-status");
+
+  // 入力されたURLを「https://host/path/*」形式のマッチパターンに正規化する
+  function buildAutoLaunchPattern(rawUrl) {
+    let url;
+    try {
+      url = new URL(String(rawUrl || "").trim());
+    } catch (e) {
+      return null;
+    }
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    let path = url.pathname || "/";
+    if (!path.endsWith("/")) path += "/";
+    return `${url.protocol}//${url.host}${path}*`;
+  }
+
+  document.getElementById("auto-launch-save").addEventListener("click", async () => {
+    const pattern = buildAutoLaunchPattern(autoLaunchUrlInput.value);
+    if (!pattern) {
+      autoLaunchStatus.textContent = "URLの形式が正しくありません（例: https://sv300.suruzo.biz/creer-1437/）。";
+      return;
+    }
+    autoLaunchStatus.textContent = "権限を確認しています…";
+    try {
+      const granted = await chrome.permissions.request({ origins: [pattern] });
+      if (!granted) {
+        autoLaunchStatus.textContent = "許可されなかったため、自動起動は設定されませんでした。";
+        return;
+      }
+      const response = await chrome.runtime.sendMessage({ type: "registerAutoLaunch", pattern });
+      if (!response || !response.ok) {
+        autoLaunchStatus.textContent = "登録に失敗しました。時間をおいて再度お試しください。";
+        return;
+      }
+      await storage.setPatch({ autoLaunchUrlPattern: pattern });
+      autoLaunchStatus.textContent = `「${pattern}」で自動起動するように設定しました。`;
+    } catch (e) {
+      console.error("[ページレフェリー] 自動起動の設定に失敗しました", e);
+      autoLaunchStatus.textContent = "設定に失敗しました。コンソールを確認してください。";
+    }
+  });
+
+  document.getElementById("auto-launch-clear").addEventListener("click", async () => {
+    const state = await storage.getAll();
+    const oldPattern = state.autoLaunchUrlPattern;
+    try {
+      await chrome.runtime.sendMessage({ type: "unregisterAutoLaunch" });
+      if (oldPattern) {
+        await chrome.permissions.remove({ origins: [oldPattern] }).catch(() => {});
+      }
+    } catch (e) {
+      console.error("[ページレフェリー] 自動起動の解除に失敗しました", e);
+    }
+    await storage.setPatch({ autoLaunchUrlPattern: null });
+    autoLaunchUrlInput.value = "";
+    autoLaunchStatus.textContent = "自動起動を解除しました。";
+  });
+
+  // ---------- ⑦ エクスポート・インポート ----------
 
   exportBtn.addEventListener("click", async () => {
     const json = await storage.exportConfig();
@@ -543,6 +608,11 @@
     const urlTemplates = state.urlTemplates || storage.DEFAULT_URL_TEMPLATES;
     urlTemplateRakutenInput.value = urlTemplates.rakuten || "";
     urlTemplateYahooInput.value = urlTemplates.yahoo || "";
+
+    if (state.autoLaunchUrlPattern) {
+      autoLaunchUrlInput.value = state.autoLaunchUrlPattern.replace(/\*$/, "");
+      autoLaunchStatus.textContent = `現在「${state.autoLaunchUrlPattern}」で自動起動する設定です。`;
+    }
   }
 
   init();
