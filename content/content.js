@@ -271,7 +271,7 @@
       </div>
       <div class="hr-chat" id="hr-chat">
         <div class="hr-suggestions-title hr-chat-header" id="hr-chat-header">
-          <span>💬 質問する（ルールブックをもとにAIが回答します）</span>
+          <span>💬 質問する（AIが回答します）</span>
           <button type="button" id="hr-chat-toggle" class="hr-btn-minimize" title="折りたたむ">▾</button>
         </div>
         <div class="hr-chat-body" id="hr-chat-body">
