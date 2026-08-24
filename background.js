@@ -2,12 +2,21 @@
 // content_scripts の matches でドメインを固定しないための方式（通販する蔵のURLが
 // 変わっても壊れない・他ページで誤動作しない）。
 
-async function injectPanel(tab) {
+async function injectPanel(tab, opts) {
   if (!tab || !tab.id || !tab.url || !/^https?:/.test(tab.url)) {
     return;
   }
 
   try {
+    if (opts && opts.auto) {
+      // 自動起動で開く場合は、content.js側が最初から最小化表示にできるよう先に目印を立てる
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          window.__hinbanRefereeAutoLaunched = true;
+        },
+      });
+    }
     await chrome.scripting.insertCSS({
       target: { tabId: tab.id },
       files: ["content/content.css"],
@@ -38,7 +47,7 @@ async function registerAutoLaunch(pattern) {
     id: AUTO_LAUNCH_SCRIPT_ID,
     matches: [pattern],
     css: ["content/content.css"],
-    js: ["lib/storage.js", "lib/rules.js", "lib/rulebook.js", "content/content.js"],
+    js: ["content/auto-flag.js", "lib/storage.js", "lib/rules.js", "lib/rulebook.js", "content/content.js"],
     runAt: "document_idle",
   };
   const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [AUTO_LAUNCH_SCRIPT_ID] });
@@ -53,7 +62,7 @@ async function registerAutoLaunch(pattern) {
   try {
     const tabs = await chrome.tabs.query({ url: pattern });
     for (const tab of tabs) {
-      injectPanel(tab);
+      injectPanel(tab, { auto: true });
     }
   } catch (err) {
     console.error("[ページレフェリー] 既存タブへの自動起動反映に失敗しました", err);

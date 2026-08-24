@@ -236,7 +236,7 @@
     <div class="hr-header" id="hr-drag-handle">
       <span class="hr-title">
         🚩 ページレフェリー
-        <button type="button" id="hr-btn-minimize" class="hr-btn-minimize" title="最小化">▾</button>
+        <button type="button" id="hr-btn-minimize" class="hr-btn-minimize" title="最小化">▸</button>
       </span>
       <span class="hr-header-btns">
         <button type="button" id="hr-btn-close" title="閉じる">✕</button>
@@ -272,7 +272,7 @@
       <div class="hr-chat" id="hr-chat">
         <div class="hr-suggestions-title hr-chat-header" id="hr-chat-header">
           <span>💬 質問する（AIが回答します）</span>
-          <button type="button" id="hr-chat-toggle" class="hr-btn-minimize" title="折りたたむ">▾</button>
+          <button type="button" id="hr-chat-toggle" class="hr-btn-minimize" title="折りたたむ">▸</button>
         </div>
         <div class="hr-chat-body" id="hr-chat-body">
           <ul class="hr-chat-log" id="hr-chat-log"></ul>
@@ -295,8 +295,8 @@
   function setCollapsed(collapsed) {
     panel.classList.toggle("hr-collapsed", collapsed);
     const btn = panel.querySelector("#hr-btn-minimize");
-    // 開いている間は「▾（押すと最小化）」、最小化中は「▸（押すと展開）」で見分けられるようにする
-    btn.textContent = collapsed ? "▸" : "▾";
+    // 開いている間は「▸（押すと最小化）」、最小化中は「▾（押すと展開）」で見分けられるようにする
+    btn.textContent = collapsed ? "▾" : "▸";
     btn.title = collapsed ? "展開" : "最小化";
   }
 
@@ -367,6 +367,13 @@
   panel.querySelector("#hr-btn-minimize").addEventListener("click", () => {
     setCollapsed(!panel.classList.contains("hr-collapsed"));
   });
+
+  // 🚩ボタンを押して手動で開いた場合は展開表示のままにするが、自動起動（URLパターン一致で
+  // 勝手に開いた場合、プレビュー画面等でも毎回全開になって邪魔になるため）のときだけ
+  // 最初から最小化した状態で表示する。
+  if (window.__hinbanRefereeAutoLaunched) {
+    setCollapsed(true);
+  }
   panel.querySelector("#hr-btn-close").addEventListener("click", () => {
     panel.remove();
     if (overlayEl) overlayEl.remove();
@@ -667,7 +674,7 @@
     const chat = panel.querySelector("#hr-chat");
     const btn = panel.querySelector("#hr-chat-toggle");
     chat.classList.toggle("hr-chat-collapsed", collapsed);
-    btn.textContent = collapsed ? "▸" : "▾";
+    btn.textContent = collapsed ? "▾" : "▸";
     btn.title = collapsed ? "展開" : "折りたたむ";
   }
   panel.querySelector("#hr-chat-toggle").addEventListener("click", () => {
