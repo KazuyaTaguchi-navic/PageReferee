@@ -78,6 +78,12 @@
      引きずられて余計な横スクロールバーが出てしまうことがあるため持たせない。 */
   overflow: visible;
   overflow-wrap: anywhere;
+  /* 親(#hinban-referee-panel)がflexで、中身がmax-height(92vh)を超えたとき、
+     ここを既定のflex-shrink:1のままにしておくと、内容が伸びるほどこの要素自体が
+     圧縮されてしまい、中の.hr-findings等が見た目上小さくなってしまう。
+     常に中身がそのままの高さで表示され、はみ出す分だけ親側のスクロールに
+     任せるようにする。 */
+  flex-shrink: 0;
 }
 
 #hinban-referee-panel .hr-datastatus {
@@ -308,6 +314,62 @@
 }
 #hinban-referee-panel .hr-tag-status-ok {
   color: #4ade80;
+}
+
+#hinban-referee-panel .hr-chat {
+  margin-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 8px;
+}
+#hinban-referee-panel .hr-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 6px;
+}
+#hinban-referee-panel .hr-chat-collapsed .hr-chat-body {
+  display: none;
+}
+#hinban-referee-panel .hr-chat-log {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+#hinban-referee-panel .hr-chat-entry {
+  padding: 6px 8px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+#hinban-referee-panel .hr-chat-q {
+  background: rgba(148, 163, 184, 0.15);
+}
+#hinban-referee-panel .hr-chat-a {
+  background: rgba(129, 140, 248, 0.15);
+}
+#hinban-referee-panel .hr-chat-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+#hinban-referee-panel .hr-chat-input-row button {
+  flex: 0 0 auto;
+}
+#hinban-referee-panel .hr-chat-input-row textarea {
+  flex: 1;
+  resize: vertical;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 12px;
 }
 
 /* ハイライトオーバーレイ（ページ側の要素の上に重ねる） */

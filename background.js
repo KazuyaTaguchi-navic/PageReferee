@@ -14,7 +14,7 @@ async function injectPanel(tab) {
     });
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ["lib/storage.js", "lib/rules.js", "content/content.js"],
+      files: ["lib/storage.js", "lib/rules.js", "lib/rulebook.js", "content/content.js"],
     });
   } catch (err) {
     console.error("[ページレフェリー] パネルの注入に失敗しました", err);
@@ -38,7 +38,7 @@ async function registerAutoLaunch(pattern) {
     id: AUTO_LAUNCH_SCRIPT_ID,
     matches: [pattern],
     css: ["content/content.css"],
-    js: ["lib/storage.js", "lib/rules.js", "content/content.js"],
+    js: ["lib/storage.js", "lib/rules.js", "lib/rulebook.js", "content/content.js"],
     runAt: "document_idle",
   };
   const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [AUTO_LAUNCH_SCRIPT_ID] });
@@ -87,6 +87,44 @@ async function syncAutoLaunchFromStorage() {
 
 chrome.runtime.onStartup.addListener(syncAutoLaunchFromStorage);
 chrome.runtime.onInstalled.addListener(syncAutoLaunchFromStorage);
+
+// ---------- チャットボット（Gemini API） ----------
+// APIキーの発行元(Google AI Studio)を問わず、content.js側はプロンプトの組み立てだけを
+// 行い、実際の外部通信はここ(background.js)でまとめて行う（content.js側はサイトの
+// CSPやhost_permissionsの都合でfetchできない場合があるため）。
+// gemini-flash-latestはGoogleが管理する「常に最新のFlashモデルを指す」エイリアスで、
+// 個別のモデル名を都度書き換えなくてもよいようにするために使う。
+const GEMINI_MODEL = "gemini-flash-latest";
+const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions";
+
+async function askGemini({ apiKey, systemInstruction, question }) {
+  if (!apiKey) {
+    throw new Error("Gemini APIキーが設定されていません。設定画面でAPIキーを入力してください。");
+  }
+  const res = await fetch(GEMINI_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "x-goog-api-key": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: GEMINI_MODEL,
+      input: question,
+      system_instruction: systemInstruction,
+    }),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message = (data && data.error && data.error.message) || `HTTP ${res.status}`;
+    throw new Error(message);
+  }
+  const outputStep = ((data && data.steps) || []).find((s) => s.type === "model_output");
+  const textPart = outputStep && (outputStep.content || []).find((c) => c.type === "text");
+  if (!textPart || !textPart.text) {
+    throw new Error("回答を取得できませんでした（想定外のレスポンス形式です）");
+  }
+  return textPart.text;
+}
 
 // 設定画面（options）から、実際にパネルが開いているページ上で項目マッピングの
 // 照準モードを遠隔操作するためのタブ一覧管理。
@@ -141,6 +179,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       } catch (err) {
         console.error("[ページレフェリー] 自動起動の解除に失敗しました", err);
         sendResponse({ ok: false, error: String(err) });
+      }
+    })();
+    return true;
+  }
+
+  if (message.type === "askChatbot") {
+    (async () => {
+      try {
+        const answer = await askGemini({
+          apiKey: message.apiKey,
+          systemInstruction: message.systemInstruction,
+          question: message.question,
+        });
+        sendResponse({ ok: true, answer });
+      } catch (err) {
+        console.error("[ページレフェリー] チャットボットの応答取得に失敗しました", err);
+        sendResponse({ ok: false, error: String((err && err.message) || err) });
       }
     })();
     return true;

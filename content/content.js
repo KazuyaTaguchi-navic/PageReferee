@@ -18,7 +18,8 @@
 
   const storage = window.HinbanReferee && window.HinbanReferee.storage;
   const rules = window.HinbanReferee && window.HinbanReferee.rules;
-  if (!storage || !rules) {
+  const rulebook = window.HinbanReferee && window.HinbanReferee.rulebook;
+  if (!storage || !rules || !rulebook) {
     console.error("[ページレフェリー] 内部ライブラリの読み込みに失敗しました");
     return;
   }
@@ -267,6 +268,19 @@
         <div class="hr-tag-status" id="hr-tag-status" style="display:none;"></div>
         <div class="hr-suggestions-title">🔎 車種別タグ候補（要確認・キーワード一致による推定です）</div>
         <ul class="hr-suggestion-list" id="hr-suggestion-list"></ul>
+      </div>
+      <div class="hr-chat" id="hr-chat">
+        <div class="hr-suggestions-title hr-chat-header" id="hr-chat-header">
+          <span>💬 質問する（ルールブックをもとにAIが回答します）</span>
+          <button type="button" id="hr-chat-toggle" class="hr-btn-minimize" title="折りたたむ">▾</button>
+        </div>
+        <div class="hr-chat-body" id="hr-chat-body">
+          <ul class="hr-chat-log" id="hr-chat-log"></ul>
+          <div class="hr-chat-input-row">
+            <textarea id="hr-chat-input" rows="2" placeholder="例: 国産車の車種名にメーカー名は必要ですか？"></textarea>
+            <button type="button" id="hr-chat-send" class="hr-btn-secondary">送信</button>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -533,6 +547,136 @@
       list.appendChild(li);
     });
   }
+
+  // ---------- チャットボット ----------
+
+  // ルールブックのGoogleスプレッドシートを都度取得し、「Q: .../A: ...」形式のテキストに
+  // まとめてGeminiへの指示に埋め込む（URL・列マッピングが未設定の場合や取得に失敗した
+  // 場合は空文字を返す＝マニュアル抜粋のみで回答させる）。ファイルの選び直しが不要な
+  // 代わりに、質問のたびに毎回ネットワーク取得が発生する。
+  async function buildRulebookContext(state) {
+    if (!state.ruleBookSheetUrl) return "";
+    const columnMap = state.ruleBookColumnMap || storage.DEFAULT_RULEBOOK_COLUMN_MAP;
+    const catKey = columnMap["カテゴリ"];
+    const qKey = columnMap["質問"];
+    const aKey = columnMap["回答"];
+    if (!qKey || !aKey) return "";
+    try {
+      const sheet = await rulebook.fetchRulebookSheet(state.ruleBookSheetUrl);
+      return sheet.rows
+        .filter((row) => row[qKey])
+        .map((row) => {
+          const cat = catKey && row[catKey] ? `[${row[catKey]}] ` : "";
+          return `Q: ${cat}${row[qKey]}\nA: ${row[aKey]}`;
+        })
+        .join("\n\n");
+    } catch (err) {
+      console.error("[ページレフェリー] ルールブックの取得に失敗しました", err);
+      return "";
+    }
+  }
+
+  async function buildChatSystemInstruction(state) {
+    const rulebookText = await buildRulebookContext(state);
+    const lines = [
+      "あなたは「通販する蔵」での商品ページ作成を担当する社外スタッフからの質問に答える、作業支援のためのアシスタントです。",
+      "以下の「ページ作成ルールブック」と「マニュアル抜粋」に書かれている内容を根拠に、簡潔な日本語で回答してください。",
+      "文体は「〜してください。」「〜になります。」「〜です。」のように断定・指示形で書き、「かもしれません」「〜と思われます」のような、判断を相手に委ねる曖昧な言い回しは使わないでください（このツールは担当者の代わりに判断して伝えることが目的のため）。ただし後述の2.に該当し、実際にメーカーページを確認してもらう必要がある場合はその指示自体は明確に伝えてください。",
+      "回答の優先順位は次の通りです。",
+      "1. ルールブック・マニュアル抜粋の中に、質問にそのまま当てはまる内容があれば、それに基づいて具体的に回答してください（自社品番やSKUの表記ルール、優先順位の原則など、社内の取り決めに関する質問はここで答えられることが多いです）。「型式」「メーカー」という単語が含まれているだけで2.に進まないでください。",
+      "2. 「メーカーの公式サイトに実際にその型式・車種・純正品番の記載があるか／内容が正しいか」を確認しないと答えられない質問（表記の真偽・誤植の疑い・実在確認など）にだけ、無理に推測せず「お手数ですが、メーカーページをご確認ください」と案内してください。",
+      "3. 1にも2にも当てはまらず、ルールブック・マニュアル抜粋のどちらにも根拠が見当たらない場合は、正直に「この内容についてはルールブックに記載がありませんでした」と伝えてください。",
+      "",
+      rulebookText
+        ? "【ページ作成ルールブック】\n" + rulebookText
+        : "（ページ作成ルールブックは未設定です。設定画面から読み込んでください）",
+      "",
+      "【マニュアル抜粋】\n" + storage.CHATBOT_MANUAL_SUMMARY,
+    ];
+    return lines.join("\n");
+  }
+
+  function appendChatEntry(role, text) {
+    const log = panel.querySelector("#hr-chat-log");
+    const li = document.createElement("li");
+    li.className = "hr-chat-entry hr-chat-" + role;
+    li.textContent = (role === "q" ? "🙋 " : "🤖 ") + text;
+    log.appendChild(li);
+    log.scrollTop = log.scrollHeight;
+    return li;
+  }
+
+  async function sendChatQuestion() {
+    const input = panel.querySelector("#hr-chat-input");
+    const sendBtn = panel.querySelector("#hr-chat-send");
+    const question = input.value.trim();
+    if (!question) return;
+
+    appendChatEntry("q", question);
+    input.value = "";
+    sendBtn.disabled = true;
+    const answerEl = appendChatEntry("a", "考え中…");
+
+    try {
+      const state = await storage.getAll();
+      if (!state.geminiApiKey) {
+        answerEl.textContent = "🤖 Gemini APIキーが未設定です。設定画面（⑦チャットボット設定）で登録してください。";
+        return;
+      }
+      if (!isExtensionContextValid()) {
+        answerEl.textContent = "🤖 拡張機能が更新されたため通信できません。ページを再読み込みしてやり直してください。";
+        return;
+      }
+      answerEl.textContent = "🤖 ルールブックを確認中…";
+      const systemInstruction = await buildChatSystemInstruction(state);
+      answerEl.textContent = "🤖 考え中…";
+      const response = await chrome.runtime.sendMessage({
+        type: "askChatbot",
+        apiKey: state.geminiApiKey,
+        systemInstruction,
+        question,
+      });
+      if (!response || !response.ok) {
+        answerEl.textContent = `🤖 エラー: ${(response && response.error) || "応答を取得できませんでした"}`;
+        return;
+      }
+      answerEl.textContent = "🤖 " + response.answer;
+    } catch (err) {
+      console.error("[ページレフェリー] チャットボットの質問送信に失敗しました", err);
+      answerEl.textContent = "🤖 エラーが発生しました。コンソールを確認してください。";
+    } finally {
+      sendBtn.disabled = false;
+      const log = panel.querySelector("#hr-chat-log");
+      log.scrollTop = log.scrollHeight;
+    }
+  }
+
+  panel.querySelector("#hr-chat-send").addEventListener("click", () => {
+    sendChatQuestion();
+  });
+  panel.querySelector("#hr-chat-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendChatQuestion();
+    }
+  });
+
+  // レッド/イエロー一覧のエリアを圧迫しないよう、チャット欄だけ独立して折りたたみ
+  // できるようにする（パネル全体の最小化とは別）。
+  function setChatCollapsed(collapsed) {
+    const chat = panel.querySelector("#hr-chat");
+    const btn = panel.querySelector("#hr-chat-toggle");
+    chat.classList.toggle("hr-chat-collapsed", collapsed);
+    btn.textContent = collapsed ? "▸" : "▾";
+    btn.title = collapsed ? "展開" : "折りたたむ";
+  }
+  panel.querySelector("#hr-chat-toggle").addEventListener("click", () => {
+    setChatCollapsed(!panel.querySelector("#hr-chat").classList.contains("hr-chat-collapsed"));
+  });
+  panel.querySelector("#hr-chat-header").addEventListener("click", (e) => {
+    if (e.target.closest("button")) return;
+    setChatCollapsed(!panel.querySelector("#hr-chat").classList.contains("hr-chat-collapsed"));
+  });
 
   function nextFrame() {
     return new Promise((resolve) => setTimeout(resolve, 0));

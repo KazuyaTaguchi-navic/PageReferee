@@ -48,6 +48,8 @@
       車種: (h) => h.replace(/[\s　]/g, "") === "車種",
       車種正式名称: (h) => h.includes("正式名称"),
       カテゴリ: (h) => h.includes("カテゴリ"),
+      質問: (h) => h.includes("質問"),
+      回答: (h) => h.includes("ルール") || h.includes("回答") || h.includes("対応方法"),
     };
     const test = rules[logicalKey];
     if (!test) return "";
@@ -560,7 +562,74 @@
     autoLaunchStatus.textContent = "自動起動を解除しました。";
   });
 
-  // ---------- ⑦ エクスポート・インポート ----------
+  // ---------- ⑦ チャットボット設定 ----------
+
+  const geminiApiKeyInput = document.getElementById("gemini-apikey");
+  const geminiApiKeyStatus = document.getElementById("gemini-apikey-status");
+  const rulebookUrlInput = document.getElementById("rulebook-url");
+  const rulebookStatus = document.getElementById("rulebook-status");
+  const rulebookSheetConfigEl = document.getElementById("rulebook-sheet-config");
+  const rulebookSaveBtn = document.getElementById("rulebook-save");
+
+  const RULEBOOK_COLUMN_KEYS = ["カテゴリ", "質問", "回答"];
+
+  document.getElementById("gemini-apikey-save").addEventListener("click", async () => {
+    const key = geminiApiKeyInput.value.trim();
+    await storage.setPatch({ geminiApiKey: key || null });
+    geminiApiKeyStatus.textContent = key ? "APIキーを保存しました。" : "APIキーを削除しました。";
+  });
+
+  // 管理表・タグ表用のrenderSheetColumnConfig（複数シートからの選択）とは異なり、
+  // ルールブックはURLのgidで既に1タブ分に絞られているので、シート選択UIなしで
+  // 列マッピングのプルダウンだけを出す。
+  function renderRulebookColumnConfig(sheet, existingMap) {
+    rulebookSheetConfigEl.innerHTML = "";
+    const grid = document.createElement("div");
+    grid.className = "map-grid";
+    RULEBOOK_COLUMN_KEYS.forEach((key) => {
+      const label = document.createElement("label");
+      label.textContent = key;
+      const selected = (existingMap && existingMap[key]) || guessHeader(sheet.headers, key);
+      const select = buildSelect(sheet.headers, selected);
+      select.dataset.logicalKey = key;
+      grid.appendChild(label);
+      grid.appendChild(select);
+    });
+    rulebookSheetConfigEl.appendChild(grid);
+    rulebookSheetConfigEl.getCurrentMap = () => {
+      const map = {};
+      grid.querySelectorAll("select[data-logical-key]").forEach((select) => {
+        if (select.value) map[select.dataset.logicalKey] = select.value;
+      });
+      return map;
+    };
+    rulebookSaveBtn.style.display = "inline-block";
+  }
+
+  document.getElementById("rulebook-url-save").addEventListener("click", async () => {
+    const url = rulebookUrlInput.value.trim();
+    if (!url) return;
+    rulebookStatus.textContent = "読み込み中...";
+    try {
+      const sheet = await window.HinbanReferee.rulebook.fetchRulebookSheet(url);
+      await storage.setPatch({ ruleBookSheetUrl: url });
+      rulebookStatus.textContent = `読み込み完了（${sheet.rows.length}行） / ${new Date().toLocaleString("ja-JP")}`;
+      const state = await storage.getAll();
+      renderRulebookColumnConfig(sheet, state.ruleBookColumnMap);
+    } catch (err) {
+      console.error(err);
+      rulebookStatus.textContent = "読み込みに失敗しました: " + (err && err.message ? err.message : String(err));
+    }
+  });
+
+  rulebookSaveBtn.addEventListener("click", async () => {
+    const map = rulebookSheetConfigEl.getCurrentMap ? rulebookSheetConfigEl.getCurrentMap() : null;
+    if (!map) return;
+    await storage.setPatch({ ruleBookColumnMap: map });
+    rulebookStatus.textContent += "　→ 列マッピングを保存しました。";
+  });
+
+  // ---------- ⑧ エクスポート・インポート ----------
 
   exportBtn.addEventListener("click", async () => {
     const json = await storage.exportConfig();
@@ -612,6 +681,23 @@
     if (state.autoLaunchUrlPattern) {
       autoLaunchUrlInput.value = state.autoLaunchUrlPattern.replace(/\*$/, "");
       autoLaunchStatus.textContent = `現在「${state.autoLaunchUrlPattern}」で自動起動する設定です。`;
+    }
+
+    if (state.geminiApiKey) {
+      geminiApiKeyInput.value = state.geminiApiKey;
+      geminiApiKeyStatus.textContent = "APIキーを設定済みです。";
+    }
+    if (state.ruleBookSheetUrl) {
+      rulebookUrlInput.value = state.ruleBookSheetUrl;
+      rulebookStatus.textContent = "読み込み中...";
+      try {
+        const sheet = await window.HinbanReferee.rulebook.fetchRulebookSheet(state.ruleBookSheetUrl);
+        rulebookStatus.textContent = `読み込み済み（${sheet.rows.length}行）`;
+        renderRulebookColumnConfig(sheet, state.ruleBookColumnMap);
+      } catch (err) {
+        console.error(err);
+        rulebookStatus.textContent = "前回保存したURLの読み込みに失敗しました: " + (err && err.message ? err.message : String(err));
+      }
     }
   }
 

@@ -96,10 +96,35 @@
   </details>
 
   <details class="settings-section">
-    <summary><h2>⑦ 設定のエクスポート・インポート</h2></summary>
+    <summary><h2>⑦ チャットボット設定</h2></summary>
     <p class="hint">
-      列マッピング・項目マッピング・重大度設定をJSONとして書き出せます。他の担当者はこのJSONを読み込むだけで同じ設定が使えます。
-      （管理表・タグ表のファイル自体は含まれません。各自でファイルを選択してください）
+      パネルに質問すると、ページ作成ルールブックの内容をもとにGemini APIが回答する「💬 質問する」欄を使えるようにします。<br />
+      Gemini APIキーは<a href="https://aistudio.google.com/" target="_blank" rel="noopener">Google AI Studio</a>の「Get API key」から無料で取得できます。
+      取得したキーはこの欄に直接貼り付けてください（このブラウザ内に保存され、下記⑧のエクスポートに含めることもできます）。
+    </p>
+    <input type="text" id="gemini-apikey" style="width:100%;" placeholder="Gemini APIキーを貼り付け" />
+    <button type="button" id="gemini-apikey-save" class="btn-primary">APIキーを保存</button>
+    <div id="gemini-apikey-status" class="status"></div>
+
+    <h3>ページ作成ルールブック（Googleスプレッドシートを直接参照します）</h3>
+    <p class="hint">
+      ルールブックのスプレッドシートの共有設定を「リンクを知っている全員」に変更し、そのURL（タブを指定した状態のURLでOK）を貼り付けてください。
+      質問するたびに最新の内容を自動取得するので、更新のたびにファイルを選び直す必要はありません。
+    </p>
+    <input type="text" id="rulebook-url" style="width:100%;" placeholder="https://docs.google.com/spreadsheets/d/xxxxx/edit?gid=xxxxx" />
+    <button type="button" id="rulebook-url-save" class="btn-primary">読み込んで保存</button>
+    <div id="rulebook-status" class="status"></div>
+    <div id="rulebook-sheet-config"></div>
+    <button type="button" id="rulebook-save" class="btn-primary" style="display:none;">列マッピングを保存</button>
+  </details>
+
+  <details class="settings-section">
+    <summary><h2>⑧ 設定のエクスポート・インポート</h2></summary>
+    <p class="hint">
+      列マッピング・項目マッピング・重大度設定・Gemini APIキーをJSONとして書き出せます。他の担当者はこのJSONを読み込むだけで同じ設定（チャットボット機能含む）が使えます。
+      （管理表・タグ表・ルールブックのファイル自体は含まれません。各自でファイルを選択してください）<br />
+      ⚠️ このJSONにはGemini APIキーがそのまま含まれます。取り扱いには注意し、渡す相手を限定してください。
+      同じAPIキーを複数人で同時に使うと、無料枠のレート制限（一定時間あたりの利用回数上限）に達しやすくなる点もご留意ください。
     </p>
     <button type="button" id="export-btn">エクスポート（クリップボードにコピー）</button>
     <textarea id="export-area" rows="6" placeholder="ここにJSONを貼り付けて「インポート」を押してください"></textarea>
@@ -110,6 +135,7 @@
   <script src="../lib/xlsx.full.min.js"></script>
   <script src="../lib/storage.js"></script>
   <script src="../lib/workbook.js"></script>
+  <script src="../lib/rulebook.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
