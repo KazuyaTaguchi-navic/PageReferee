@@ -188,6 +188,14 @@ button:hover {
 .severity-row:last-child {
   border-bottom: none;
 }
+.severity-row-ai {
+  margin-bottom: 14px;
+  padding: 8px;
+  border: 1px solid #8ab4f8;
+  border-bottom: 1px solid #8ab4f8;
+  border-radius: 6px;
+  background: #eef4ff;
+}
 .field-key {
   width: 230px;
   flex-shrink: 0;

@@ -124,6 +124,12 @@ async function askGemini({ apiKey, systemInstruction, question }) {
   });
   const data = await res.json().catch(() => null);
   if (!res.ok) {
+    // 無料枠のレート制限（429/RESOURCE_EXHAUSTED）は、他社スタッフ等が見ても分かるように
+    // 生の英語エラーではなく日本語の案内にする。それ以外のエラーはそのままメッセージを出す。
+    const errorStatus = data && data.error && data.error.status;
+    if (res.status === 429 || errorStatus === "RESOURCE_EXHAUSTED") {
+      throw new Error("Gemini APIの利用上限（無料枠）に達しました。しばらく時間をおいてから、もう一度お試しください。");
+    }
     const message = (data && data.error && data.error.message) || `HTTP ${res.status}`;
     throw new Error(message);
   }
@@ -133,6 +139,39 @@ async function askGemini({ apiKey, systemInstruction, question }) {
     throw new Error("回答を取得できませんでした（想定外のレスポンス形式です）");
   }
   return textPart.text;
+}
+
+// captureVisibleTabはタブの見える範囲全体を撮影するため、実績記録用のスクショは
+// パネル部分の座標（CSS px）とdevicePixelRatioを使って切り抜く。
+async function cropToPanel(dataUrl, rect, devicePixelRatio) {
+  if (!rect) return dataUrl;
+  const scale = devicePixelRatio || 1;
+  const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
+  const sx = Math.max(0, Math.round(rect.left * scale));
+  const sy = Math.max(0, Math.round(rect.top * scale));
+  const sw = Math.min(bitmap.width - sx, Math.round(rect.width * scale));
+  const sh = Math.min(bitmap.height - sy, Math.round(rect.height * scale));
+  if (sw <= 0 || sh <= 0) {
+    bitmap.close();
+    return dataUrl;
+  }
+  const canvas = new OffscreenCanvas(sw, sh);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, sw, sh);
+  bitmap.close();
+  const blob = await canvas.convertToBlob({ type: "image/png" });
+  const buffer = await blob.arrayBuffer();
+  return `data:image/png;base64,${arrayBufferToBase64(buffer)}`;
+}
+
+function arrayBufferToBase64(buffer) {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
 }
 
 // 設定画面（options）から、実際にパネルが開いているページ上で項目マッピングの
@@ -204,6 +243,62 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ ok: true, answer });
       } catch (err) {
         console.error("[ページレフェリー] チャットボットの応答取得に失敗しました", err);
+        sendResponse({ ok: false, error: String((err && err.message) || err) });
+      }
+    })();
+    return true;
+  }
+
+  if (message.type === "logCheckResult") {
+    (async () => {
+      try {
+        if (!message.webhookUrl) {
+          throw new Error("実績記録用のWebアプリURLが設定されていません");
+        }
+        if (!sender.tab || sender.tab.windowId === undefined) {
+          throw new Error("スクリーンショットを撮影できませんでした（タブ情報を取得できません）");
+        }
+        let fullImageDataUrl;
+        try {
+          fullImageDataUrl = await chrome.tabs.captureVisibleTab(sender.tab.windowId, { format: "png" });
+        } catch (err) {
+          // captureVisibleTabは「activeTab」(🚩ボタン経由)か「すべてのサイト」への権限が
+          // 必要で、自動起動用に許可した特定サイトの権限だけでは足りない（Chromeの仕様）。
+          if (String((err && err.message) || err).includes("permission")) {
+            throw new Error(
+              "スクリーンショット撮影の権限がありません。設定画面⑧でWebアプリURLを保存し直し、「すべてのサイトへのアクセス」を許可してください。"
+            );
+          }
+          throw err;
+        }
+        const imageDataUrl = await cropToPanel(fullImageDataUrl, message.panelRect, message.devicePixelRatio);
+        const res = await fetch(message.webhookUrl, {
+          method: "POST",
+          // Apps ScriptのWebアプリはCORSのプリフライト(OPTIONS)に応答しないため、
+          // text/plainで送ってプリフライトを発生させない（doPost側はcontent-typeに関わらず
+          // e.postData.contentsからJSONをパースできる）。
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            companyCode: message.companyCode,
+            timestamp: message.timestamp,
+            redCount: message.redCount,
+            yellowCount: message.yellowCount,
+            image: imageDataUrl,
+          }),
+        });
+        const text = await res.text().catch(() => "");
+        let data = null;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          data = null;
+        }
+        if (!res.ok || (data && data.ok === false)) {
+          throw new Error((data && data.error) || `HTTP ${res.status}`);
+        }
+        sendResponse({ ok: true });
+      } catch (err) {
+        console.error("[ページレフェリー] 実績の記録に失敗しました", err);
         sendResponse({ ok: false, error: String((err && err.message) || err) });
       }
     })();

@@ -334,6 +334,12 @@
   // SKU情報は行単位の繰り返し項目のため個別の項目名ではなく1つのまとまりとして扱う。
   const SEVERITY_CATEGORIES = [
     {
+      // する蔵の実項目ではなく、Gemini APIによるAIチェック機能のため、他と混ざらないよう
+      // 一番上に離して表示する（renderSeverityListでこのカテゴリだけ強調スタイルを当てる）。
+      label: "AIチェック（する蔵の項目ではありません）",
+      keys: ["誤字脱字チェック"],
+    },
+    {
       label: "基本情報",
       keys: [
         "自社品番",
@@ -367,6 +373,7 @@
         "楽天商品名",
         "楽天表示価格",
         "楽天販売価格",
+        "楽天送料区分",
         "楽天カタログID",
         "楽天注文ボタン",
         "楽天配送方法セット管理番号",
@@ -423,6 +430,7 @@
         "Amazonポイント",
         "Amazonメーカー希望小売価格",
         "Amazon法人価格",
+        "Amazon不要入力",
       ],
     },
     {
@@ -460,6 +468,9 @@
         const label = document.createElement("span");
         label.className = "field-key";
         const category = SEVERITY_KEY_CATEGORY[key] || "その他";
+        if (category.startsWith("AIチェック")) {
+          row.classList.add("severity-row-ai");
+        }
         label.textContent = `[${category}]${key}`;
         const select = document.createElement("select");
         const currentValue = merged[key] || "none";
@@ -629,7 +640,44 @@
     rulebookStatus.textContent += "　→ 列マッピングを保存しました。";
   });
 
-  // ---------- ⑧ エクスポート・インポート ----------
+  // ---------- ⑧ 実績記録設定 ----------
+
+  const logWebhookUrlInput = document.getElementById("log-webhook-url");
+  const logWebhookStatus = document.getElementById("log-webhook-status");
+
+  document.getElementById("log-webhook-save").addEventListener("click", async () => {
+    const url = logWebhookUrlInput.value.trim();
+    if (!url) {
+      await storage.setPatch({ logWebhookUrl: null });
+      logWebhookStatus.textContent = "URLが空のため、記録は無効のままです。";
+      return;
+    }
+    // スクショ撮影(chrome.tabs.captureVisibleTab)は、自動起動用に許可した特定サイトの
+    // 権限だけでは動作せず、「すべてのサイト」への権限が必要（Chromeの仕様）。
+    // 🚩ボタン経由（activeTab）ではなく自動起動経由でパネルを開いた場合は特にこれが必要になる。
+    logWebhookStatus.textContent = "権限を確認しています…";
+    try {
+      const granted = await chrome.permissions.request({ origins: ["*://*/*"] });
+      if (!granted) {
+        logWebhookStatus.textContent =
+          "スクリーンショット撮影には「すべてのサイトへのアクセス」の許可が必要です。許可されなかったため、URLは保存しませんでした。";
+        return;
+      }
+      await storage.setPatch({ logWebhookUrl: url });
+      logWebhookStatus.textContent = "保存しました。次回の「確認する」完了時から記録されます。";
+    } catch (e) {
+      console.error("[ページレフェリー] 実績記録設定の保存に失敗しました", e);
+      logWebhookStatus.textContent = "設定に失敗しました。コンソールを確認してください。";
+    }
+  });
+
+  document.getElementById("log-webhook-clear").addEventListener("click", async () => {
+    logWebhookUrlInput.value = "";
+    await storage.setPatch({ logWebhookUrl: null });
+    logWebhookStatus.textContent = "記録を無効化しました。";
+  });
+
+  // ---------- ⑨ エクスポート・インポート ----------
 
   exportBtn.addEventListener("click", async () => {
     const json = await storage.exportConfig();
@@ -698,6 +746,10 @@
         console.error(err);
         rulebookStatus.textContent = "前回保存したURLの読み込みに失敗しました: " + (err && err.message ? err.message : String(err));
       }
+    }
+    if (state.logWebhookUrl) {
+      logWebhookUrlInput.value = state.logWebhookUrl;
+      logWebhookStatus.textContent = "実績記録は有効です。";
     }
   }
 

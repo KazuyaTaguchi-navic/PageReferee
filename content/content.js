@@ -592,7 +592,8 @@
       "回答の優先順位は次の通りです。",
       "1. ルールブック・マニュアル抜粋の中に、質問にそのまま当てはまる内容があれば、それに基づいて具体的に回答してください（自社品番やSKUの表記ルール、優先順位の原則など、社内の取り決めに関する質問はここで答えられることが多いです）。「型式」「メーカー」という単語が含まれているだけで2.に進まないでください。",
       "2. 「メーカーの公式サイトに実際にその型式・車種・純正品番の記載があるか／内容が正しいか」を確認しないと答えられない質問（表記の真偽・誤植の疑い・実在確認など）にだけ、無理に推測せず「お手数ですが、メーカーページをご確認ください」と案内してください。",
-      "3. 1にも2にも当てはまらず、ルールブック・マニュアル抜粋のどちらにも根拠が見当たらない場合は、正直に「この内容についてはルールブックに記載がありませんでした」と伝えてください。",
+      "3. 1にも2にも当てはまらないが、カー用品（自動車パーツ・アクセサリー）を扱うECショップの実務・一般的な業界知識（用語の意味、一般的な梱包・配送・ページ作成の考え方など）として、社内ルールを断定しなくても妥当に回答できる質問であれば、一般的な知識をもとに回答して構いません。ただしその場合は必ず回答の冒頭に「（社内ルールではなく一般的な知識に基づく回答です）」と明記し、社内の正式なルールと誤解されないようにしてください。",
+      "4. 1・2・3のいずれにも当てはまらず、確信を持って答えられない場合は、正直に「この内容についてはルールブックに記載がなく、確実にはお答えできません」と伝えてください。",
       "",
       rulebookText
         ? "【ページ作成ルールブック】\n" + rulebookText
@@ -637,12 +638,15 @@
       answerEl.textContent = "🤖 ルールブックを確認中…";
       const systemInstruction = await buildChatSystemInstruction(state);
       answerEl.textContent = "🤖 考え中…";
-      const response = await chrome.runtime.sendMessage({
-        type: "askChatbot",
-        apiKey: state.geminiApiKey,
-        systemInstruction,
-        question,
-      });
+      // Gemini側の混雑等で応答が長引くと、待っている間にbackground.js（service worker）が
+      // ブラウザに一時停止させられ「考え中…」のまま応答が返らなくなることがあるため、
+      // タイムアウトを設けてはっきりしたメッセージに倒す。
+      const response = await Promise.race([
+        chrome.runtime.sendMessage({ type: "askChatbot", apiKey: state.geminiApiKey, systemInstruction, question }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Gemini APIの応答がタイムアウトしました（混雑している可能性があります）")), 25000)
+        ),
+      ]);
       if (!response || !response.ok) {
         answerEl.textContent = `🤖 エラー: ${(response && response.error) || "応答を取得できませんでした"}`;
         return;
@@ -650,7 +654,22 @@
       answerEl.textContent = "🤖 " + response.answer;
     } catch (err) {
       console.error("[ページレフェリー] チャットボットの質問送信に失敗しました", err);
-      answerEl.textContent = "🤖 エラーが発生しました。コンソールを確認してください。";
+      // 拡張機能をchrome://extensionsで再読み込みした直後は、開きっぱなしのページに
+      // 残っている古いcontent scriptの通信経路が切れており、isExtensionContextValid()の
+      // 事前チェックをすり抜けてこの形（message channel closed等）で失敗することがある。
+      // その場合は原因と対処（ページの再読み込み）が分かるようにする。
+      const msg = String((err && err.message) || err);
+      if (
+        msg.includes("message channel closed") ||
+        msg.includes("Extension context invalidated") ||
+        msg.includes("Could not establish connection")
+      ) {
+        answerEl.textContent = "🤖 拡張機能が更新されたため通信が切れています。このページを再読み込みしてからもう一度お試しください。";
+      } else if (msg.includes("タイムアウト")) {
+        answerEl.textContent = "🤖 " + msg;
+      } else {
+        answerEl.textContent = "🤖 エラーが発生しました。コンソールを確認してください。";
+      }
     } finally {
       sendBtn.disabled = false;
       const log = panel.querySelector("#hr-chat-log");
@@ -700,6 +719,89 @@
 
   function hideProgress() {
     panel.querySelector("#hr-progress").style.display = "none";
+  }
+
+  // 誤字脱字チェック（Gemini API）。カー用品ショップとしての文章の誤字・脱字・変換ミスは
+  // 正規表現では拾えないため、商品名・各説明文をまとめてAIに校正させる。
+  // APIキー未設定、または設定④で「なし」にしている場合はAPI呼び出し自体を行わずスキップする。
+  function buildTypoCheckText(domValues) {
+    return storage.TAG_CANDIDATE_TEXT_KEYS.map((key) => {
+      const value = domValues[key];
+      if (!value || !String(value).trim()) return null;
+      return `【${key}】\n${value}`;
+    })
+      .filter(Boolean)
+      .join("\n\n");
+  }
+
+  async function runTypoCheck(domValues, apiKey, severity) {
+    const text = buildTypoCheckText(domValues);
+    if (!text) return null;
+
+    const systemInstruction = [
+      "あなたはカー用品（自動車パーツ・アクセサリー）を扱うオンラインショップの商品ページ校正担当です。",
+      "以下は商品ページの各項目のテキストです。日本語として明らかな誤字・脱字・変換ミス・言葉の重複や欠落があれば指摘してください。",
+      "車種名・型式・メーカー名など、実物を見ないと正しい表記か判断できない固有名詞的な表記ゆれは、誤字脱字ではないため指摘しないでください。",
+      "問題が1つも見つからない場合は、他の文言を一切付けず「問題なし」とだけ回答してください。",
+      "問題がある場合は、前置きの文章なしで「【項目名】誤 → 正（簡潔な理由）」の形式で1件ずつ改行して列挙してください。",
+    ].join("\n");
+
+    // Gemini側が混雑している等で応答が長引くと、待っている間にbackground.js
+    // （service worker）がブラウザに一時停止させられ、代わりに分かりにくい
+    // 「message channel closed」エラーになることがあるため、タイムアウトを設けて
+    // その場合ははっきり分かるメッセージにする。
+    let response;
+    try {
+      response = await Promise.race([
+        chrome.runtime.sendMessage({ type: "askChatbot", apiKey, systemInstruction, question: text }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Gemini APIの応答がタイムアウトしました（混雑している可能性があります）")), 25000)
+        ),
+      ]);
+    } catch (err) {
+      console.error("[ページレフェリー] 誤字脱字チェックの応答取得に失敗しました", err);
+      return null;
+    }
+    if (!response || !response.ok) {
+      console.error("[ページレフェリー] 誤字脱字チェックの応答取得に失敗しました", response && response.error);
+      return null;
+    }
+    const answer = (response.answer || "").trim();
+    if (!answer || answer.startsWith("問題なし")) return null;
+
+    return {
+      key: "誤字脱字チェック",
+      targetKey: "誤字脱字チェック",
+      severity,
+      message: `文章に誤字脱字の疑いがあります（AIチェック）:\n${answer}`,
+    };
+  }
+
+  // 実績の記録（スクショ＋レッド/イエロー件数をスプレッドシートに送信）。
+  // スクリーンショット撮影(chrome.tabs.captureVisibleTab)はcontent script側からは
+  // 実行できないため、background.js側でまとめて行う。
+  function formatLogTimestamp(date) {
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  }
+
+  async function logCheckResult(webhookUrl, companyCode, redCount, yellowCount) {
+    // ページ全体ではなく、拡張機能のパネル部分だけを切り抜いてもらうための座標情報。
+    // captureVisibleTab自体はタブの見える範囲全体を撮影するため、切り抜きはbackground.js側で行う。
+    const rect = panel.getBoundingClientRect();
+    const response = await chrome.runtime.sendMessage({
+      type: "logCheckResult",
+      webhookUrl,
+      companyCode: companyCode || "",
+      timestamp: formatLogTimestamp(new Date()),
+      redCount,
+      yellowCount,
+      panelRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      devicePixelRatio: window.devicePixelRatio || 1,
+    });
+    if (!response || !response.ok) {
+      throw new Error((response && response.error) || "記録に失敗しました");
+    }
   }
 
   async function runCheck() {
@@ -790,6 +892,18 @@
         urlTemplates: state.urlTemplates,
       });
 
+      const typoSeverity = (state.severity && state.severity["誤字脱字チェック"]) || "none";
+      if (state.geminiApiKey && typoSeverity !== "none" && isExtensionContextValid()) {
+        setProgress(92, "文章の誤字脱字をAIチェック中…");
+        await nextFrame();
+        try {
+          const typoFinding = await runTypoCheck(domValues, state.geminiApiKey, typoSeverity);
+          if (typoFinding) findings.push(typoFinding);
+        } catch (err) {
+          console.error("[ページレフェリー] 誤字脱字チェックに失敗しました", err);
+        }
+      }
+
       renderFindings(findings, currentFieldMap);
 
       const vehicleTagStatus = rules.getVehicleTagStatus(domValues);
@@ -797,6 +911,14 @@
 
       setProgress(100, "完了");
       await new Promise((resolve) => setTimeout(resolve, 300));
+
+      if (state.logWebhookUrl) {
+        const redCount = findings.filter((f) => f.severity === "red").length;
+        const yellowCount = findings.filter((f) => f.severity === "yellow").length;
+        logCheckResult(state.logWebhookUrl, companyCode, redCount, yellowCount).catch((err) => {
+          console.error("[ページレフェリー] 実績の記録に失敗しました", err);
+        });
+      }
     } finally {
       hideProgress();
       checkBtn.disabled = false;
