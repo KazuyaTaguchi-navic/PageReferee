@@ -8,12 +8,14 @@
   const mgmtStatus = document.getElementById("mgmt-status");
   const mgmtSheetsEl = document.getElementById("mgmt-sheets");
   const mgmtSaveBtn = document.getElementById("mgmt-save");
+  const mgmtSaveStatus = document.getElementById("mgmt-save-status");
 
   const tagFileInput = document.getElementById("tag-file");
   const tagStatus = document.getElementById("tag-status");
   const tagSheetConfigEl = document.getElementById("tag-sheet-config");
   const tagDictConfigEl = document.getElementById("tagdict-sheet-config");
   const tagSaveBtn = document.getElementById("tag-save");
+  const tagSaveStatus = document.getElementById("tag-save-status");
 
   const fieldmapListEl = document.getElementById("fieldmap-list");
   const severityListEl = document.getElementById("severity-list");
@@ -160,7 +162,7 @@
       configs.push({ sheetName, columnMap });
     });
     await storage.setPatch({ productSheetConfigs: configs });
-    mgmtStatus.textContent += `　→ ${configs.length}件の商品シートを保存しました。`;
+    mgmtSaveStatus.textContent = `${configs.length}件の商品シートを保存しました。（${new Date().toLocaleTimeString("ja-JP")}）`;
   });
 
   // ---------- ② 車種別タグ表 ----------
@@ -254,7 +256,7 @@
     if (tagSheetConfig) patch.tagSheetConfig = tagSheetConfig;
     if (tagDictionaryConfig) patch.tagDictionaryConfig = tagDictionaryConfig;
     await storage.setPatch(patch);
-    tagStatus.textContent += "　→ タグ表設定を保存しました。";
+    tagSaveStatus.textContent = `タグ表設定を保存しました。（${new Date().toLocaleTimeString("ja-JP")}）`;
   });
 
   // ---------- ③ ページ側の項目マッピング ----------
