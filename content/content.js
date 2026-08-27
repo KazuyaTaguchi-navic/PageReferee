@@ -271,8 +271,13 @@
       </div>
       <div class="hr-chat" id="hr-chat">
         <div class="hr-suggestions-title hr-chat-header" id="hr-chat-header">
-          <span>💬 質問する（AIが回答します）</span>
-          <button type="button" id="hr-chat-toggle" class="hr-btn-minimize" title="折りたたむ">▸</button>
+          <span class="hr-title">
+            💬 質問する
+            <button type="button" id="hr-chat-toggle" class="hr-btn-minimize" title="折りたたむ">▸</button>
+          </span>
+          <span class="hr-header-btns">
+            <button type="button" id="hr-chat-copy" class="hr-btn-minimize" title="やりとりをコピー">📋</button>
+          </span>
         </div>
         <div class="hr-chat-body" id="hr-chat-body">
           <ul class="hr-chat-log" id="hr-chat-log"></ul>
@@ -370,9 +375,12 @@
 
   // 🚩ボタンを押して手動で開いた場合は展開表示のままにするが、自動起動（URLパターン一致で
   // 勝手に開いた場合、プレビュー画面等でも毎回全開になって邪魔になるため）のときだけ
-  // 最初から最小化した状態で表示する。
+  // 最初から最小化した状態で表示する。このフラグは一度使ったら消す（消さないと、✕で閉じて
+  // 🚩ボタンから手動で開き直したときにも前回の自動起動時のフラグが残ったままになり、
+  // 手動で開いたときまで最小化されてしまう）。
   if (window.__hinbanRefereeAutoLaunched) {
     setCollapsed(true);
+    window.__hinbanRefereeAutoLaunched = false;
   }
   panel.querySelector("#hr-btn-close").addEventListener("click", () => {
     panel.remove();
@@ -591,9 +599,9 @@
       "文体は「〜してください。」「〜になります。」「〜です。」のように断定・指示形で書き、「かもしれません」「〜と思われます」のような、判断を相手に委ねる曖昧な言い回しは使わないでください（このツールは担当者の代わりに判断して伝えることが目的のため）。ただし後述の2.に該当し、実際にメーカーページを確認してもらう必要がある場合はその指示自体は明確に伝えてください。",
       "回答の優先順位は次の通りです。",
       "1. ルールブック・マニュアル抜粋の中に、質問にそのまま当てはまる内容があれば、それに基づいて具体的に回答してください（自社品番やSKUの表記ルール、優先順位の原則など、社内の取り決めに関する質問はここで答えられることが多いです）。「型式」「メーカー」という単語が含まれているだけで2.に進まないでください。",
-      "2. 「メーカーの公式サイトに実際にその型式・車種・純正品番の記載があるか／内容が正しいか」を確認しないと答えられない質問（表記の真偽・誤植の疑い・実在確認など）にだけ、無理に推測せず「お手数ですが、メーカーページをご確認ください」と案内してください。",
+      "2. 「メーカーの公式サイトに実際にその型式・車種・純正品番の記載があるか／内容が正しいか」を確認しないと答えられない質問（表記の真偽・誤植の疑い・実在確認など）にだけ、無理に推測せず「お手数ですが、メーカーページをご確認ください。それでも判断が難しい場合は、チャット欄右上の📋ボタンでこのやりとりをコピーし、管理者にご連絡ください。」と案内してください。",
       "3. 1にも2にも当てはまらないが、カー用品（自動車パーツ・アクセサリー）を扱うECショップの実務・一般的な業界知識（用語の意味、一般的な梱包・配送・ページ作成の考え方など）として、社内ルールを断定しなくても妥当に回答できる質問であれば、一般的な知識をもとに回答して構いません。ただしその場合は必ず回答の冒頭に「（社内ルールではなく一般的な知識に基づく回答です）」と明記し、社内の正式なルールと誤解されないようにしてください。",
-      "4. 1・2・3のいずれにも当てはまらず、確信を持って答えられない場合は、正直に「この内容についてはルールブックに記載がなく、確実にはお答えできません」と伝えてください。",
+      "4. 1・2・3のいずれにも当てはまらず、確信を持って答えられない場合は、正直に「この内容についてはルールブックに記載がなく、確実にはお答えできません。お手数ですが、チャット欄右上の📋ボタンでこのやりとりをコピーし、管理者にご連絡ください。」と伝えてください。",
       "",
       rulebookText
         ? "【ページ作成ルールブック】\n" + rulebookText
@@ -644,7 +652,10 @@
       const response = await Promise.race([
         chrome.runtime.sendMessage({ type: "askChatbot", apiKey: state.geminiApiKey, systemInstruction, question }),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Gemini APIの応答がタイムアウトしました（混雑している可能性があります）")), 25000)
+          setTimeout(
+            () => reject(new Error("Gemini APIの応答がタイムアウトしました（混雑している可能性があります。しばらく経ってから再度お試しください）")),
+            30000
+          )
         ),
       ]);
       if (!response || !response.ok) {
@@ -698,6 +709,24 @@
   }
   panel.querySelector("#hr-chat-toggle").addEventListener("click", () => {
     setChatCollapsed(!panel.querySelector("#hr-chat").classList.contains("hr-chat-collapsed"));
+  });
+
+  // チャットボットで解決しなかった場合に、同じ内容を打ち直さずチャットワーク等へ
+  // そのまま貼り付けられるよう、やりとり全体をテキストでコピーできるようにする。
+  panel.querySelector("#hr-chat-copy").addEventListener("click", (btnEvent) => {
+    const copyBtn = btnEvent.currentTarget;
+    const entries = Array.from(panel.querySelectorAll("#hr-chat-log .hr-chat-entry")).map((li) => li.textContent);
+    if (!entries.length) {
+      copyBtn.title = "まだやりとりがありません";
+      return;
+    }
+    navigator.clipboard.writeText(entries.join("\n\n")).then(() => {
+      const original = copyBtn.textContent;
+      copyBtn.textContent = "✅";
+      setTimeout(() => {
+        copyBtn.textContent = original;
+      }, 1200);
+    });
   });
   panel.querySelector("#hr-chat-header").addEventListener("click", (e) => {
     if (e.target.closest("button")) return;
@@ -755,7 +784,10 @@
       response = await Promise.race([
         chrome.runtime.sendMessage({ type: "askChatbot", apiKey, systemInstruction, question: text }),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Gemini APIの応答がタイムアウトしました（混雑している可能性があります）")), 25000)
+          setTimeout(
+            () => reject(new Error("Gemini APIの応答がタイムアウトしました（混雑している可能性があります。しばらく経ってから再度お試しください）")),
+            30000
+          )
         ),
       ]);
     } catch (err) {

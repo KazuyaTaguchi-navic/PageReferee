@@ -101,10 +101,14 @@ chrome.runtime.onInstalled.addListener(syncAutoLaunchFromStorage);
 // APIキーの発行元(Google AI Studio)を問わず、content.js側はプロンプトの組み立てだけを
 // 行い、実際の外部通信はここ(background.js)でまとめて行う（content.js側はサイトの
 // CSPやhost_permissionsの都合でfetchできない場合があるため）。
-// gemini-flash-latestはGoogleが管理する「常に最新のFlashモデルを指す」エイリアスで、
-// 個別のモデル名を都度書き換えなくてもよいようにするために使う。
-const GEMINI_MODEL = "gemini-flash-latest";
-const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions";
+// gemini-flash-lite-latestはGoogleが管理する「常に最新のFlash-Liteモデルを指す」エイリアス。
+// 通常のFlashは無料枠のRPM(1分あたりのリクエスト数)が5件と少なく、このツールの利用だけで
+// すぐ上限に達してしまったため、無料枠のRPMが3倍（15件）あるFlash-Liteに変更した。
+// v1beta/interactionsエンドポイントは応答が返らず固まる不具合があったため、Google AI
+// Studio（実際に問題なく動作することを確認済み）と同じ、昔からある標準の
+// generateContentエンドポイントに変更した。
+const GEMINI_MODEL = "gemini-flash-lite-latest";
+const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 async function askGemini({ apiKey, systemInstruction, question }) {
   if (!apiKey) {
@@ -117,9 +121,8 @@ async function askGemini({ apiKey, systemInstruction, question }) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: GEMINI_MODEL,
-      input: question,
-      system_instruction: systemInstruction,
+      contents: [{ parts: [{ text: question }] }],
+      systemInstruction: { parts: [{ text: systemInstruction }] },
     }),
   });
   const data = await res.json().catch(() => null);
@@ -130,11 +133,15 @@ async function askGemini({ apiKey, systemInstruction, question }) {
     if (res.status === 429 || errorStatus === "RESOURCE_EXHAUSTED") {
       throw new Error("Gemini APIの利用上限（無料枠）に達しました。しばらく時間をおいてから、もう一度お試しください。");
     }
+    if (res.status === 503 || errorStatus === "UNAVAILABLE") {
+      throw new Error("Gemini APIが現在混雑しています。しばらく時間をおいてから、もう一度お試しください。");
+    }
     const message = (data && data.error && data.error.message) || `HTTP ${res.status}`;
     throw new Error(message);
   }
-  const outputStep = ((data && data.steps) || []).find((s) => s.type === "model_output");
-  const textPart = outputStep && (outputStep.content || []).find((c) => c.type === "text");
+  const candidate = data && data.candidates && data.candidates[0];
+  const parts = candidate && candidate.content && candidate.content.parts;
+  const textPart = parts && parts.find((p) => p.text);
   if (!textPart || !textPart.text) {
     throw new Error("回答を取得できませんでした（想定外のレスポンス形式です）");
   }
