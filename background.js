@@ -287,6 +287,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify({
             companyCode: message.companyCode,
+            workerNo: message.workerNo,
             timestamp: message.timestamp,
             redCount: message.redCount,
             yellowCount: message.yellowCount,

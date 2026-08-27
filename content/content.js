@@ -853,7 +853,7 @@
     return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
   }
 
-  async function logCheckResult(webhookUrl, companyCode, redCount, yellowCount) {
+  async function logCheckResult(webhookUrl, companyCode, workerNo, redCount, yellowCount) {
     // ページ全体ではなく、拡張機能のパネル部分だけを切り抜いてもらうための座標情報。
     // captureVisibleTab自体はタブの見える範囲全体を撮影するため、切り抜きはbackground.js側で行う。
     const rect = panel.getBoundingClientRect();
@@ -861,6 +861,7 @@
       type: "logCheckResult",
       webhookUrl,
       companyCode: companyCode || "",
+      workerNo: workerNo || "",
       timestamp: formatLogTimestamp(new Date()),
       redCount,
       yellowCount,
@@ -996,7 +997,7 @@
       registerGuard.signature = computeFormSignature();
 
       if (state.logWebhookUrl) {
-        logCheckResult(state.logWebhookUrl, companyCode, redCount, yellowCount).catch((err) => {
+        logCheckResult(state.logWebhookUrl, companyCode, domValues["作業者No"], redCount, yellowCount).catch((err) => {
           console.error("[ページレフェリー] 実績の記録に失敗しました", err);
         });
       }
