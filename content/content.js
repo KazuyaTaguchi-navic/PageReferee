@@ -62,6 +62,34 @@
   let pickerTargetKey = null;
   let pickerHoverEl = null;
 
+  // ---------- 登録ボタンのロック（設定でONの会社のみ）----------
+  // 「確認する」を一度も実行していない／管理表に該当行が無い／レッドかイエローが残っている／
+  // 確認後に内容が変更された、のいずれかに該当する間は登録ボタンを押せないようにするための状態。
+  const registerGuard = {
+    enabled: false,
+    hasChecked: false,
+    hasManagementMatch: null,
+    redCount: null,
+    yellowCount: null,
+    signature: null,
+  };
+  storage
+    .getAll()
+    .then((s) => {
+      registerGuard.enabled = !!s.registerLockEnabled;
+    })
+    .catch(() => {});
+
+  // 登録ボタンロックの変更検知用に、パネル自身の入力欄(#hinban-referee-panel配下)を除いた
+  // ページ側の全入力値を連結する。厳密なハッシュである必要はなく、値が変わったかどうかだけ分かればよい。
+  function computeFormSignature() {
+    const panelEl = document.getElementById("hinban-referee-panel");
+    return Array.from(document.querySelectorAll("input, select, textarea"))
+      .filter((el) => !panelEl || !panelEl.contains(el))
+      .map((el) => (el.type === "checkbox" || el.type === "radio" ? (el.checked ? "1" : "0") : el.value || ""))
+      .join("");
+  }
+
   // ---------- DOM値の取得 ----------
 
   function extractSingleValue(entry) {
@@ -847,6 +875,7 @@
       const state = await storage.getAll();
       currentFieldMap = Object.assign({}, storage.DEFAULT_FIELD_MAP, state.domFieldMap || {});
       renderDataStatus(state);
+      registerGuard.enabled = !!state.registerLockEnabled;
 
       setProgress(35, "ページの入力内容を取得中…");
       await nextFrame();
@@ -944,9 +973,16 @@
       setProgress(100, "完了");
       await new Promise((resolve) => setTimeout(resolve, 300));
 
+      const redCount = findings.filter((f) => f.severity === "red").length;
+      const yellowCount = findings.filter((f) => f.severity === "yellow").length;
+
+      registerGuard.hasChecked = true;
+      registerGuard.hasManagementMatch = !!managementMatch;
+      registerGuard.redCount = redCount;
+      registerGuard.yellowCount = yellowCount;
+      registerGuard.signature = computeFormSignature();
+
       if (state.logWebhookUrl) {
-        const redCount = findings.filter((f) => f.severity === "red").length;
-        const yellowCount = findings.filter((f) => f.severity === "yellow").length;
         logCheckResult(state.logWebhookUrl, companyCode, redCount, yellowCount).catch((err) => {
           console.error("[ページレフェリー] 実績の記録に失敗しました", err);
         });
@@ -964,6 +1000,55 @@
       alert("確認処理でエラーが発生しました。詳細はコンソールを確認してください。");
     });
   });
+
+  // ---------- 登録ボタンのロック ----------
+  // する蔵側の独自onclick（chkInputSkucode()）より先に横取りする必要があるため、
+  // documentのキャプチャフェーズで拾ってstopImmediatePropagationする（バブリングフェーズや
+  // ボタン自身へのリスナーでは、既にページ側が登録済みのonclickより後にしか実行されない）。
+  function handleRegisterGuardClick(e) {
+    if (!registerGuard.enabled) return;
+    const btn = e.target.closest && e.target.closest('input[name="entry"].entry_btn');
+    if (!btn) return;
+
+    const reasons = [];
+    if (!registerGuard.hasChecked) {
+      reasons.push("まだ一度も「確認する」を実行していません。");
+    } else {
+      if (registerGuard.hasManagementMatch === false) {
+        reasons.push("自社品番が管理表に見つかりませんでした（正しく確認できていません）。");
+      }
+      if (registerGuard.redCount > 0) {
+        reasons.push(`レッドカードが${registerGuard.redCount}件残っています。`);
+      }
+      if (registerGuard.yellowCount > 0) {
+        reasons.push(`イエローカードが${registerGuard.yellowCount}件残っています。`);
+      }
+      if (computeFormSignature() !== registerGuard.signature) {
+        reasons.push("「確認する」の実行後に内容が変更されたため、再確認が必要です。");
+      }
+    }
+
+    if (!reasons.length) return;
+
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    alert(
+      "ページレフェリー: レッドカード・イエローカードが0件になるまで登録できません。\n\n" +
+        reasons.join("\n") +
+        "\n\n「確認する」を押して内容を確認してください。"
+    );
+    setCollapsed(false);
+    panel.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  // 拡張機能を再読み込みした後の多重注入時に、古いコンテキストに紐づいたリスナーが
+  // 残り続けないよう、既存のものがあれば先に外してから登録し直す（ファイル冒頭の
+  // 既存パネル削除処理と同じ考え方）。
+  if (window.__hinbanRefereeRegisterGuardHandler) {
+    document.removeEventListener("click", window.__hinbanRefereeRegisterGuardHandler, true);
+  }
+  window.__hinbanRefereeRegisterGuardHandler = handleRegisterGuardClick;
+  document.addEventListener("click", handleRegisterGuardClick, true);
 
   // ---------- 項目マッピング（照準）モード ----------
 

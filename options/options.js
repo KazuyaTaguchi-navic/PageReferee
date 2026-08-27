@@ -679,7 +679,19 @@
     logWebhookStatus.textContent = "記録を無効化しました。";
   });
 
-  // ---------- ⑨ エクスポート・インポート ----------
+  // ---------- ⑩ 登録ボタンのロック ----------
+
+  const registerLockCheckbox = document.getElementById("register-lock-enabled");
+  const registerLockStatus = document.getElementById("register-lock-status");
+
+  registerLockCheckbox.addEventListener("change", async () => {
+    await storage.setPatch({ registerLockEnabled: registerLockCheckbox.checked });
+    registerLockStatus.textContent = registerLockCheckbox.checked
+      ? "登録ボタンのロックを有効にしました。"
+      : "登録ボタンのロックを無効にしました。";
+  });
+
+  // ---------- ⑪ エクスポート・インポート ----------
 
   exportBtn.addEventListener("click", async () => {
     const json = await storage.exportConfig();
@@ -753,6 +765,7 @@
       logWebhookUrlInput.value = state.logWebhookUrl;
       logWebhookStatus.textContent = "実績記録は有効です。";
     }
+    registerLockCheckbox.checked = !!state.registerLockEnabled;
   }
 
   init();
