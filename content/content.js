@@ -65,15 +65,22 @@
   // ---------- 登録ボタンのロック（設定でONの会社のみ）----------
   // 「確認する」を一度も実行していない／管理表に該当行が無い／レッドかイエローが残っている／
   // 確認後に内容が変更された、のいずれかに該当する間は登録ボタンを押せないようにするための状態。
-  const registerGuard = {
-    enabled: false,
-    checking: false,
-    hasChecked: false,
-    hasManagementMatch: null,
-    redCount: null,
-    yellowCount: null,
-    signature: null,
-  };
+  // windowに載せて、同じページに万一content.jsが複数回注入された場合でも（例:
+  // 自動起動と🚩ボタンが両方効いた等）、どの回の「確認する」がこの状態を更新しても、
+  // どの回のクリックハンドラも必ず同じ最新の状態を参照するようにする（ここをローカル
+  // 変数にすると、注入のたびに別オブジェクトになり、片方は最新の確認結果で更新される
+  // のにもう片方は古い状態のまま登録ボタンを判定してしまう、という食い違いが起こり得る）。
+  const registerGuard =
+    window.__hinbanRefereeRegisterGuard ||
+    (window.__hinbanRefereeRegisterGuard = {
+      enabled: false,
+      checking: false,
+      hasChecked: false,
+      hasManagementMatch: null,
+      redCount: null,
+      yellowCount: null,
+      signature: null,
+    });
   storage
     .getAll()
     .then((s) => {
