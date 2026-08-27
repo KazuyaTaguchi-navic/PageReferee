@@ -1020,9 +1020,6 @@
       if (registerGuard.redCount > 0) {
         reasons.push(`レッドカードが${registerGuard.redCount}件残っています。`);
       }
-      if (registerGuard.yellowCount > 0) {
-        reasons.push(`イエローカードが${registerGuard.yellowCount}件残っています。`);
-      }
       if (computeFormSignature() !== registerGuard.signature) {
         reasons.push("「確認する」の実行後に内容が変更されたため、再確認が必要です。");
       }
@@ -1033,7 +1030,7 @@
     e.preventDefault();
     e.stopImmediatePropagation();
     alert(
-      "ページレフェリー: レッドカード・イエローカードが0件になるまで登録できません。\n\n" +
+      "ページレフェリー: レッドカードが0件になるまで登録できません（イエローカードのみが残っている場合は登録できます）。\n\n" +
         reasons.join("\n") +
         "\n\n「確認する」を押して内容を確認してください。"
     );
