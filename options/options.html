@@ -157,13 +157,21 @@ function doPost(e) {
 
     // 日時("YYYY/MM/DD HH:MM:SS")は、フィルターや並び替えがしやすいよう文字列のまま
     // 1列にせず、日付・時刻それぞれ本物の日付型セルとして分けて記録する。
+    // Dateオブジェクトをそのままセルに入れると、Apps Scriptの実行タイムゾーンと
+    // スプレッドシートのタイムゾーンの差の分だけ時刻がずれてしまう（例: 17:58が0:58に
+    // なる）ため、タイムゾーンに影響されないUTC基準の日数計算でSheetsのシリアル値を
+    // 直接求めて書き込む。
     var ts = String(data.timestamp || '');
     var m1 = ts.match(/^(\d{4})\/(\d{2})\/(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
     if (m1) {
       var y = Number(m1[1]), mo = Number(m1[2]) - 1, d = Number(m1[3]);
       var hh = Number(m1[4]), mi = Number(m1[5]), se = Number(m1[6]);
-      sheet.getRange(row, 3).setValue(new Date(y, mo, d)).setNumberFormat('yyyy/mm/dd');
-      sheet.getRange(row, 4).setValue(new Date(1899, 11, 30, hh, mi, se)).setNumberFormat('hh:mm:ss');
+      var MS_PER_DAY = 24 * 60 * 60 * 1000;
+      var SHEETS_EPOCH_UTC = Date.UTC(1899, 11, 30); // Sheetsのシリアル値0 = 1899/12/30
+      var dateSerial = Math.round((Date.UTC(y, mo, d) - SHEETS_EPOCH_UTC) / MS_PER_DAY);
+      var timeFraction = (hh * 3600 + mi * 60 + se) / 86400;
+      sheet.getRange(row, 3).setValue(dateSerial).setNumberFormat('yyyy/mm/dd');
+      sheet.getRange(row, 4).setValue(timeFraction).setNumberFormat('hh:mm:ss');
     } else {
       sheet.getRange(row, 3).setValue(ts);
     }
