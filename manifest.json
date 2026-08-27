@@ -30,7 +30,7 @@
     "tabs"
   ],
   "optional_host_permissions": [
-    "*://*/*"
+    "<all_urls>"
   ],
   "host_permissions": [
     "https://generativelanguage.googleapis.com/*",

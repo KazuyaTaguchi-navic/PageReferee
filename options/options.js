@@ -657,9 +657,13 @@
     // スクショ撮影(chrome.tabs.captureVisibleTab)は、自動起動用に許可した特定サイトの
     // 権限だけでは動作せず、「すべてのサイト」への権限が必要（Chromeの仕様）。
     // 🚩ボタン経由（activeTab）ではなく自動起動経由でパネルを開いた場合は特にこれが必要になる。
+    // ここは"*://*/*"のような通常のマッチパターンではなく、必ず特別な予約値"<all_urls>"を
+    // 指定する必要がある。captureVisibleTabの権限チェックはこの"<all_urls>"の有無を直接見ており、
+    // 効果としては同じ範囲を指す"*://*/*"を渡しても（エラーなく許可されたように見えても）
+    // 権限不足として扱われてしまう。
     logWebhookStatus.textContent = "権限を確認しています…";
     try {
-      const granted = await chrome.permissions.request({ origins: ["*://*/*"] });
+      const granted = await chrome.permissions.request({ origins: ["<all_urls>"] });
       if (!granted) {
         logWebhookStatus.textContent =
           "スクリーンショット撮影には「すべてのサイトへのアクセス」の許可が必要です。許可されなかったため、URLは保存しませんでした。";
