@@ -67,6 +67,7 @@
   // 確認後に内容が変更された、のいずれかに該当する間は登録ボタンを押せないようにするための状態。
   const registerGuard = {
     enabled: false,
+    checking: false,
     hasChecked: false,
     hasManagementMatch: null,
     redCount: null,
@@ -868,6 +869,11 @@
     const checkBtn = panel.querySelector("#hr-btn-check");
     checkBtn.disabled = true;
     checkBtn.classList.add("hr-btn-check-running");
+    // 実行中は前回までの結果に基づく登録ボタンのロック判定を一旦無効化する。
+    // AIの誤字脱字チェック等で確認に数秒〜数十秒かかることがあり、その間に前回の
+    // （古い）判定のまま登録ボタンを押せてしまう／逆に古い判定で誤ってブロックされる、
+    // という食い違いを防ぐため。
+    registerGuard.checking = true;
 
     try {
       setProgress(10, "データを読み込み中…");
@@ -991,6 +997,7 @@
       hideProgress();
       checkBtn.disabled = false;
       checkBtn.classList.remove("hr-btn-check-running");
+      registerGuard.checking = false;
     }
   }
 
@@ -1011,7 +1018,9 @@
     if (!btn) return;
 
     const reasons = [];
-    if (!registerGuard.hasChecked) {
+    if (registerGuard.checking) {
+      reasons.push("現在「確認する」を実行中です。完了してから登録してください。");
+    } else if (!registerGuard.hasChecked) {
       reasons.push("まだ一度も「確認する」を実行していません。");
     } else {
       if (registerGuard.hasManagementMatch === false) {
