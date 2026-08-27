@@ -133,10 +133,10 @@
       1. ルールブックのスプレッドシートを開き、メニュー「拡張機能」→「Apps Script」を開く<br />
       2. デフォルトのコードを全部消し、下のコードを貼り付けて保存する<br />
       3. 右上の「デプロイ」→「新しいデプロイ」→種類を「ウェブアプリ」にする<br />
-      4. 「実行するユーザー」＝自分、「アクセスできるユーザー」＝全員、にして「デプロイ」（初回は権限の承認が必要）<br />
+      4. 「実行するユーザー」＝自分、「アクセスできるユーザー」＝全員、にして「デプロイ」（初回は権限の承認が必要。スクショをGoogleドライブ経由でセル内画像として貼るため、スプレッドシートだけでなくドライブへのアクセス許可も求められます）<br />
       5. 発行された「ウェブアプリのURL」をコピーし、下の欄に貼り付けて保存する
     </p>
-    <textarea readonly rows="10" style="width:100%; font-family:monospace; font-size:12px;">function doGet(e) {
+    <textarea readonly rows="16" style="width:100%; font-family:monospace; font-size:12px;">function doGet(e) {
   return ContentService.createTextOutput('このURLはPOST専用です。拡張機能から呼び出されると正常に動作します（ブラウザで直接開いた場合はこの表示で問題ありません）。');
 }
 
@@ -159,23 +159,36 @@ function doPost(e) {
       var m = String(data.image).match(/^data:image\/(png|jpeg);base64,(.*)$/);
       if (m) {
         var blob = Utilities.newBlob(Utilities.base64Decode(m[2]), 'image/' + m[1], 'screenshot.png');
-        var image = sheet.insertImage(blob, 5, row);
-        var maxWidth = 200;
-        var scale = Math.min(1, maxWidth / image.getWidth());
-        var targetWidth = Math.round(image.getWidth() * scale);
-        var targetHeight = Math.round(image.getHeight() * scale);
-        image.setWidth(targetWidth).setHeight(targetHeight);
-        sheet.setColumnWidth(5, targetWidth + 20);
-        sheet.setRowHeight(row, targetHeight + 20);
+        // セルの上に浮かぶ画像(insertImage)だと行をまたいで重なって見づらいため、
+        // 一度ドライブに保存してURL経由でセル内画像(CellImage)として貼り付ける
+        // （セル内画像はURL指定でしか作れない仕様のため）。行の高さ・列の幅に
+        // 収まるよう自動で縮小表示され、他のセルと重なることもない。
+        var folder = getOrCreateScreenshotFolder_();
+        var file = folder.createFile(blob);
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        var imageUrl = 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w800';
+        var cellImage = SpreadsheetApp.newCellImage().setSourceUrl(imageUrl).setAltTextTitle(data.companyCode || 'スクショ').build();
+        sheet.getRange(row, 5).setValue(cellImage);
+        sheet.setRowHeight(row, 220);
+        sheet.setColumnWidth(5, 260);
       }
     }
     return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: String(err) })).setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+function getOrCreateScreenshotFolder_() {
+  var name = 'ページレフェリー_実績ログ_スクショ';
+  var folders = DriveApp.getFoldersByName(name);
+  if (folders.hasNext()) return folders.next();
+  return DriveApp.createFolder(name);
 }</textarea>
     <p class="hint">
-      未設定のままにしておけば、この機能は使われません（「確認する」の動作には影響しません）。
+      未設定のままにしておけば、この機能は使われません（「確認する」の動作には影響しません）。<br />
+      スクショはGoogleドライブの「ページレフェリー_実績ログ_スクショ」フォルダにも1枚ずつ保存されます（セル内画像の表示に必要なため）。自動で削除はされないので、不要になった古いスクショは適宜フォルダ側で削除してください。<br />
+      すでにGASを設定済みで、スクショがセルの上に重なって見づらい場合は、Apps Scriptのコードを上の最新版に貼り替えて保存し、「デプロイ」→「デプロイを管理」→編集（鉛筆アイコン）→バージョンを「新しいバージョン」にして「デプロイ」してください（WebアプリのURLは変わらないので、拡張機能側の設定はそのままでOKです）。
     </p>
     <input type="text" id="log-webhook-url" style="width:100%;" placeholder="https://script.google.com/macros/s/xxxxx/exec" />
     <button type="button" id="log-webhook-save" class="btn-primary">保存</button>
