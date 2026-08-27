@@ -102,7 +102,7 @@
     <p class="hint">
       パネルに質問すると、ページ作成ルールブックの内容をもとにGemini APIが回答する「💬 質問する」欄を使えるようにします。<br />
       Gemini APIキーは<a href="https://aistudio.google.com/" target="_blank" rel="noopener">Google AI Studio</a>の「Get API key」から無料で取得できます。
-      取得したキーはこの欄に直接貼り付けてください（このブラウザ内に保存され、下記⑪のエクスポートに含めることもできます）。
+      取得したキーはこの欄に直接貼り付けてください（このブラウザ内に保存され、下記⑩のエクスポートに含めることもできます）。
     </p>
     <input type="text" id="gemini-apikey" style="width:100%;" placeholder="Gemini APIキーを貼り付け" />
     <button type="button" id="gemini-apikey-save" class="btn-primary">APIキーを保存</button>
@@ -184,7 +184,7 @@ function doPost(e) {
   </details>
 
   <details class="settings-section">
-    <summary><h2>⑩ 登録ボタンのロック</h2></summary>
+    <summary><h2>⑨ 登録ボタンのロック</h2></summary>
     <p class="hint">
       ONにすると、通販する蔵の「登録」ボタンを押したときに、レッドカード・イエローカードが0件になっていなければ登録をブロックし、理由をお知らせします。
       「確認する」を一度も実行していない場合・自社品番が管理表に見つからなかった場合・「確認する」の後に内容を変更した場合（再確認が必要）もブロック対象です。<br />
@@ -199,7 +199,7 @@ function doPost(e) {
   </details>
 
   <details class="settings-section">
-    <summary><h2>⑪ 設定のエクスポート・インポート</h2></summary>
+    <summary><h2>⑩ 設定のエクスポート・インポート</h2></summary>
     <p class="hint">
       列マッピング・項目マッピング・重大度設定・Gemini APIキー・実績記録用WebアプリURLをJSONとして書き出せます。他の担当者はこのJSONを読み込むだけで同じ設定（チャットボット機能・実績記録含む）が使えます。
       （管理表・タグ表・ルールブックのファイル自体は含まれません。各自でファイルを選択してください）<br />

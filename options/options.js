@@ -679,7 +679,7 @@
     logWebhookStatus.textContent = "記録を無効化しました。";
   });
 
-  // ---------- ⑩ 登録ボタンのロック ----------
+  // ---------- ⑨ 登録ボタンのロック ----------
 
   const registerLockCheckbox = document.getElementById("register-lock-enabled");
   const registerLockStatus = document.getElementById("register-lock-status");
@@ -691,7 +691,7 @@
       : "登録ボタンのロックを無効にしました。";
   });
 
-  // ---------- ⑪ エクスポート・インポート ----------
+  // ---------- ⑩ エクスポート・インポート ----------
 
   exportBtn.addEventListener("click", async () => {
     const json = await storage.exportConfig();
