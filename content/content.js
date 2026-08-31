@@ -80,13 +80,47 @@
       redCount: null,
       yellowCount: null,
       signature: null,
+      // ユーザーがパネルの「今回だけロック解除」ボタンで明示的にロックを解除したかどうか。
+      // 誤検知等でレッドカードが0件にできない場合でも、作業を中断して保存だけしたいといった
+      // 緊急時にページを開き直さず（＝未保存の入力を失わずに）登録できるようにするための
+      // 手動の脱出ハッチ（sankei-se-5261rl-setの登録がロックされたまま抜け出せなかった事例より）。
+      forceUnlocked: false,
     });
+  // 古いバージョンのcontent.jsが既に同じページに注入されていた場合、window上のregisterGuardが
+  // forceUnlockedを持たないまま再利用されることがあるため、念のため補完する。
+  if (typeof registerGuard.forceUnlocked !== "boolean") {
+    registerGuard.forceUnlocked = false;
+  }
   storage
     .getAll()
     .then((s) => {
       registerGuard.enabled = !!s.registerLockEnabled;
+      updateLockRowUI();
     })
     .catch(() => {});
+
+  // 登録ボタンロック関連のUI（状態表示・🔓ボタン）を、現在のregisterGuardの状態に合わせて
+  // 更新する。ロック機能自体がOFFの会社では常に非表示にする。
+  function updateLockRowUI() {
+    const row = panel.querySelector("#hr-lock-row");
+    const btn = panel.querySelector("#hr-btn-unlock");
+    const status = panel.querySelector("#hr-lock-status");
+    if (!row || !btn || !status) return;
+    if (!registerGuard.enabled) {
+      row.style.display = "none";
+      return;
+    }
+    row.style.display = "flex";
+    if (registerGuard.forceUnlocked) {
+      row.classList.add("hr-lock-row-unlocked");
+      status.textContent = "🔓 ロックを一時解除中です（レッドカードが残っていても登録できます）";
+      btn.textContent = "🔒 ロックを戻す";
+    } else {
+      row.classList.remove("hr-lock-row-unlocked");
+      status.textContent = "🔒 レッドカードが残っている間は登録できません";
+      btn.textContent = "🔓 今回だけロック解除";
+    }
+  }
 
   // 登録ボタンロックの変更検知用に、パネル自身の入力欄(#hinban-referee-panel配下)を除いた
   // ページ側の全入力値を連結する。厳密なハッシュである必要はなく、値が変わったかどうかだけ分かればよい。
@@ -284,6 +318,10 @@
       <div class="hr-actions">
         <button type="button" id="hr-btn-check" class="hr-btn-check">🔍 確認する</button>
         <button type="button" id="hr-btn-options" class="hr-btn-secondary">⚙ 設定を開く</button>
+      </div>
+      <div class="hr-lock-row" id="hr-lock-row" style="display:none;">
+        <span class="hr-lock-status" id="hr-lock-status">🔒 レッドカードが残っている間は登録できません</span>
+        <button type="button" id="hr-btn-unlock" class="hr-btn-unlock">🔓 今回だけロック解除</button>
       </div>
       <div class="hr-progress" id="hr-progress" style="display:none;">
         <div class="hr-progress-track"><div class="hr-progress-bar" id="hr-progress-bar"></div></div>
@@ -890,6 +928,7 @@
       currentFieldMap = Object.assign({}, storage.DEFAULT_FIELD_MAP, state.domFieldMap || {});
       renderDataStatus(state);
       registerGuard.enabled = !!state.registerLockEnabled;
+      updateLockRowUI();
 
       setProgress(35, "ページの入力内容を取得中…");
       await nextFrame();
@@ -1006,6 +1045,7 @@
       checkBtn.disabled = false;
       checkBtn.classList.remove("hr-btn-check-running");
       registerGuard.checking = false;
+      updateLockRowUI();
     }
   }
 
@@ -1016,12 +1056,39 @@
     });
   });
 
+  // 緊急時の脱出ハッチ: レッドカードが誤検知等でどうしても0件にできない場合に、
+  // ページを開き直さず（＝未保存の入力を失わずに）登録できるようにする。
+  // 安全機構を無効化する操作のため、押し間違い防止にconfirm()で意図を確認する。
+  panel.querySelector("#hr-btn-unlock").addEventListener("click", () => {
+    if (registerGuard.forceUnlocked) {
+      registerGuard.forceUnlocked = false;
+      updateLockRowUI();
+      return;
+    }
+    const ok = confirm(
+      "レッドカードが残っていても登録できるようにします。\n" +
+        "内容に本当に問題がないか十分確認したうえで、作業を中断して保存したい場合など緊急時のみ使用してください。\n\n" +
+        "ロックを解除しますか？"
+    );
+    if (!ok) return;
+    registerGuard.forceUnlocked = true;
+    updateLockRowUI();
+  });
+
   // ---------- 登録ボタンのロック ----------
   // する蔵側の独自onclick（chkInputSkucode()）より先に横取りする必要があるため、
   // documentのキャプチャフェーズで拾ってstopImmediatePropagationする（バブリングフェーズや
   // ボタン自身へのリスナーでは、既にページ側が登録済みのonclickより後にしか実行されない）。
   function handleRegisterGuardClick(e) {
     if (!registerGuard.enabled) return;
+    // 拡張機能が無効化・削除・更新された場合、chrome.runtimeは使えなくなるがこの
+    // クリックリスナー自体はページに残り続け、開き直すまで動き続けてしまう
+    // （sankei-se-5261rl-setの登録がロックされたまま拡張機能を削除しても解除できなかった
+    // 事例より）。安全機構の裏付けとなる拡張機能自体が既に無い状態でブロックし続けるのは
+    // 本末転倒なので、コンテキストが無効になっていたら素通しする。
+    if (!isExtensionContextValid()) return;
+    // ユーザーがパネルの「今回だけロック解除」ボタンで明示的にロックを解除済みの場合も素通しする。
+    if (registerGuard.forceUnlocked) return;
     const btn = e.target.closest && e.target.closest('input[name="entry"].entry_btn');
     if (!btn) return;
 
