@@ -319,10 +319,6 @@
         <button type="button" id="hr-btn-check" class="hr-btn-check">🔍 確認する</button>
         <button type="button" id="hr-btn-options" class="hr-btn-secondary">⚙ 設定を開く</button>
       </div>
-      <div class="hr-lock-row" id="hr-lock-row" style="display:none;">
-        <span class="hr-lock-status" id="hr-lock-status">🔒 レッドカードが残っている間は登録できません</span>
-        <button type="button" id="hr-btn-unlock" class="hr-btn-unlock">🔓 今回だけロック解除</button>
-      </div>
       <div class="hr-progress" id="hr-progress" style="display:none;">
         <div class="hr-progress-track"><div class="hr-progress-bar" id="hr-progress-bar"></div></div>
         <div class="hr-progress-label" id="hr-progress-label"></div>
@@ -360,6 +356,10 @@
             <button type="button" id="hr-chat-send" class="hr-btn-secondary">送信</button>
           </div>
         </div>
+      </div>
+      <div class="hr-lock-row" id="hr-lock-row" style="display:none;">
+        <span class="hr-lock-status" id="hr-lock-status">🔒 レッドカードが残っている間は登録できません</span>
+        <button type="button" id="hr-btn-unlock" class="hr-btn-unlock">🔓 今回だけロック解除</button>
       </div>
     </div>
   `;
