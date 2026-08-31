@@ -85,25 +85,8 @@
     .getAll()
     .then((s) => {
       registerGuard.enabled = !!s.registerLockEnabled;
-      updateLockRowUI();
     })
     .catch(() => {});
-
-  // 登録ボタンロックの状態表示を、現在のregisterGuardの状態に合わせて更新する。
-  // ロック機能自体がOFFの会社では常に非表示にする。ロックの解除は「✕」でパネルを
-  // 閉じる（＝ページレフェリーがいなくなる）ことで行う設計のため、パネル側にはボタンを
-  // 置かず、案内だけ表示する。
-  function updateLockRowUI() {
-    const row = panel.querySelector("#hr-lock-row");
-    const status = panel.querySelector("#hr-lock-status");
-    if (!row || !status) return;
-    if (!registerGuard.enabled) {
-      row.style.display = "none";
-      return;
-    }
-    row.style.display = "flex";
-    status.textContent = "🔒 レッドカードが残っている間は登録できません（✕でパネルを閉じれば登録できます）";
-  }
 
   // 登録ボタンロックの変更検知用に、パネル自身の入力欄(#hinban-referee-panel配下)を除いた
   // ページ側の全入力値を連結する。厳密なハッシュである必要はなく、値が変わったかどうかだけ分かればよい。
@@ -339,9 +322,6 @@
             <button type="button" id="hr-chat-send" class="hr-btn-secondary">送信</button>
           </div>
         </div>
-      </div>
-      <div class="hr-lock-row" id="hr-lock-row" style="display:none;">
-        <span class="hr-lock-status" id="hr-lock-status">🔒 レッドカードが残っている間は登録できません</span>
       </div>
     </div>
   `;
@@ -930,7 +910,6 @@
       currentFieldMap = Object.assign({}, storage.DEFAULT_FIELD_MAP, state.domFieldMap || {});
       renderDataStatus(state);
       registerGuard.enabled = !!state.registerLockEnabled;
-      updateLockRowUI();
 
       setProgress(35, "ページの入力内容を取得中…");
       await nextFrame();
@@ -1024,19 +1003,13 @@
       // この実行結果は既に無関係。表示にもロック判定にも反映せず破棄する。
       if (!isLatestRun()) return;
 
-      renderFindings(findings, currentFieldMap);
-
-      const vehicleTagStatus = rules.getVehicleTagStatus(domValues);
-      renderTagCandidates(tagCandidates, vehicleTagStatus);
-
-      setProgress(100, "完了");
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      if (!isLatestRun()) return;
-
       const redCount = findings.filter((f) => f.severity === "red").length;
       const yellowCount = findings.filter((f) => f.severity === "yellow").length;
 
+      // 登録ボタンのロック判定は、findingsが確定したこの時点で必ず確定させる。
+      // この後のタグ候補表示・プログレスバー等はあくまで見た目の更新であり、万一そこで
+      // 例外が発生してcatchされずtryを抜けても、ロック判定用の件数は「9件残っています」の
+      // ように古いまま取り残されず、必ず最新のfindingsを反映した値になる。
       registerGuard.hasChecked = true;
       registerGuard.hasManagementMatch = !!managementMatch;
       registerGuard.redCount = redCount;
@@ -1048,6 +1021,16 @@
           console.error("[ページレフェリー] 実績の記録に失敗しました", err);
         });
       }
+
+      if (!isLatestRun()) return;
+
+      renderFindings(findings, currentFieldMap);
+
+      const vehicleTagStatus = rules.getVehicleTagStatus(domValues);
+      renderTagCandidates(tagCandidates, vehicleTagStatus);
+
+      setProgress(100, "完了");
+      await new Promise((resolve) => setTimeout(resolve, 300));
     } finally {
       hideProgress();
       checkBtn.disabled = false;
@@ -1058,7 +1041,6 @@
       if (isLatestRun()) {
         registerGuard.checking = false;
       }
-      updateLockRowUI();
     }
   }
 
