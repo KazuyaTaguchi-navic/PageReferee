@@ -912,6 +912,19 @@
   }
 
   async function runCheck() {
+    // 🚩ボタンの再クリックや拡張機能の再読み込みでcontent.jsが再注入されると、パネルは
+    // 新しく作り直されるが、古いパネルで既に走っていた「確認する」（AIの誤字脱字チェック等で
+    // 数秒〜数十秒かかることがある）はキャンセルされずバックグラウンドで動き続ける。
+    // これがそのまま完了すると、新しい（正しい）確認結果でregisterGuardを更新した後に、
+    // 古い（既に無関係になった）確認結果で上書きしてしまい、パネル表示（新しい結果）と
+    // 登録ボタンロックの判定（古い結果）が食い違う不具合が起きる（例: パネルはレッド1件
+    // 表示なのに、登録しようとすると「レッドカードが9件残っています」と出る）。
+    // window上の連番で「最後に開始された確認」だけが結果をregisterGuardへ反映できるように
+    // することで防ぐ。
+    window.__hinbanRefereeCheckRunSeq = (window.__hinbanRefereeCheckRunSeq || 0) + 1;
+    const runSeq = window.__hinbanRefereeCheckRunSeq;
+    const isLatestRun = () => runSeq === window.__hinbanRefereeCheckRunSeq;
+
     const checkBtn = panel.querySelector("#hr-btn-check");
     checkBtn.disabled = true;
     checkBtn.classList.add("hr-btn-check-running");
@@ -1018,6 +1031,10 @@
         }
       }
 
+      // ここまでの間（特にAIの誤字脱字チェック）にもっと新しい「確認する」が始まっていたら、
+      // この実行結果は既に無関係。表示にもロック判定にも反映せず破棄する。
+      if (!isLatestRun()) return;
+
       renderFindings(findings, currentFieldMap);
 
       const vehicleTagStatus = rules.getVehicleTagStatus(domValues);
@@ -1025,6 +1042,8 @@
 
       setProgress(100, "完了");
       await new Promise((resolve) => setTimeout(resolve, 300));
+
+      if (!isLatestRun()) return;
 
       const redCount = findings.filter((f) => f.severity === "red").length;
       const yellowCount = findings.filter((f) => f.severity === "yellow").length;
@@ -1044,7 +1063,12 @@
       hideProgress();
       checkBtn.disabled = false;
       checkBtn.classList.remove("hr-btn-check-running");
-      registerGuard.checking = false;
+      // 既にもっと新しい確認が開始されている場合、そちらの完了までは「確認中」の
+      // ままにしておく（この（古い）実行が先に終わったからといってcheckingをfalseに
+      // 戻すと、新しい実行がまだ終わっていないのに登録ボタンのロックが緩んでしまう）。
+      if (isLatestRun()) {
+        registerGuard.checking = false;
+      }
       updateLockRowUI();
     }
   }
