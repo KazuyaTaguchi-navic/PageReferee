@@ -515,6 +515,12 @@
   // 🚩ボタンを押さなくても自動的にパネルを表示できるようにする。ブラウザの権限モデル上、
   // 新しいサイトへのアクセス許可はユーザー操作（クリック）を起点に要求する必要があるため、
   // 保存ボタン押下時にchrome.permissions.requestを呼ぶ。
+  // ⚠️ chrome.permissions.requestは、manifest.jsonのoptional_host_permissionsで宣言された
+  // パターンの範囲内でしか許可を要求できない。ここで使う任意のサイトパターン（例:
+  // "https://sv300.suruzo.biz/creer-1437/*"）を許可できるようにするため、manifest.json側は
+  // 常に"<all_urls>"を宣言しておく必要がある（かつてスクショ機能のために宣言していたものを
+  // 「スクショをやめたから」と誤って削除したところ、この自動起動の権限要求自体が失敗し、
+  // 既存の許可も失効して「パネルの注入に失敗しました」エラーが多発する不具合を起こした）。
 
   const autoLaunchUrlInput = document.getElementById("auto-launch-url");
   const autoLaunchStatus = document.getElementById("auto-launch-status");
