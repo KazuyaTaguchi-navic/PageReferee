@@ -714,7 +714,7 @@
   // 作業者もこの設定画面自体は開けてしまうため、項目マッピング・重大度設定・チャットボット・
   // 実績記録など、管理者だけが触るべき項目はパスコードを入力するまで表示しない。
   // パスコードは平文のまま保存せず、SHA-256のハッシュ値だけをchrome.storage.localに保存する。
-  const ADMIN_LOCKED_SECTION_IDS = ["settings-3", "settings-4", "settings-5", "settings-7", "settings-8"];
+  const ADMIN_LOCKED_SECTION_IDS = ["settings-6", "settings-7", "settings-8", "settings-9", "settings-10"];
   const adminLockBar = document.getElementById("admin-lock-bar");
   const adminLockStatus = document.getElementById("admin-lock-status");
   const adminLockPasscodeInput = document.getElementById("admin-lock-passcode");

@@ -44,42 +44,8 @@
     <div id="tag-save-status" class="status"></div>
   </details>
 
-  <div class="settings-section" id="admin-lock-bar">
-    <h2>🔒 管理者用設定</h2>
-    <p id="admin-lock-status" class="status"></p>
-    <input type="password" id="admin-lock-passcode" style="width:100%;" placeholder="パスコード" autocomplete="off" />
-    <button type="button" id="admin-lock-btn" class="btn-primary">解除</button>
-  </div>
-
-  <details class="settings-section" id="settings-3" hidden>
-    <summary><h2>③ ページ側の項目マッピング</h2></summary>
-    <div id="fieldmap-target" class="status"></div>
-    <div id="fieldmap-list"></div>
-    <div class="add-row">
-      <input type="text" id="fieldmap-new-key" placeholder="新しい項目名（例: 楽天カテゴリ1）" />
-      <button type="button" id="fieldmap-new-btn">追加して指定する</button>
-    </div>
-  </details>
-
-  <details class="settings-section" id="settings-4" hidden>
-    <summary><h2>④ 重大度設定（レッドカード／イエローカード）</h2></summary>
-    <div id="severity-list"></div>
-  </details>
-
-  <details class="settings-section" id="settings-5" hidden>
-    <summary><h2>⑤ モールURLのひな形（正しいURLをコピーする機能で使用）</h2></summary>
-    <div class="map-grid">
-      <label>楽天商品URL</label>
-      <input type="text" id="url-template-rakuten" style="width:100%;" />
-      <label>ヤフー商品URL</label>
-      <input type="text" id="url-template-yahoo" style="width:100%;" />
-    </div>
-    <button type="button" id="url-template-save" class="btn-primary">URLひな形を保存</button>
-    <div id="url-template-status" class="status"></div>
-  </details>
-
   <details class="settings-section">
-    <summary><h2>⑥ 自動起動設定</h2></summary>
+    <summary><h2>③ 自動起動設定</h2></summary>
     <p class="hint">
       ここで指定したURLで始まるページを開くと、🚩ボタンを押さなくても自動的にパネルが表示されます。
       アカウントごとに管理画面のURLが違うため、それぞれの環境に合わせて設定してください（未設定の場合は今まで通り🚩ボタンで開きます）。<br />
@@ -91,8 +57,71 @@
     <div id="auto-launch-status" class="status"></div>
   </details>
 
+  <details class="settings-section">
+    <summary><h2>④ 登録ボタンのロック</h2></summary>
+    <p class="hint">
+      ONにすると、通販する蔵の「登録」ボタンを押したときに、レッドカードが0件になっていなければ登録をブロックし、理由をお知らせします（イエローカードのみが残っている場合は登録できます）。
+      「確認する」を一度も実行していない場合・自社品番が管理表に見つからなかった場合・「確認する」の後に内容を変更した場合（再確認が必要）もブロック対象です。<br />
+      ⚠️ この機能が働くのは、ページを開いた時点でページレフェリーが読み込まれている場合のみです。🚩ボタンを押し忘れたページでも確実にブロックしたい場合は、あわせて「③ 自動起動設定」で対象URLを登録してください（自動起動していないページでは、そもそも拡張機能が動いていないためブロックできません）。<br />
+      会社ごとに運用が異なるため初期値はOFFで、設定のエクスポート/インポートにも含まれません（各自の環境で個別に設定してください）。
+    </p>
+    <label style="display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="register-lock-enabled" />
+      レッドが0件になるまで登録ボタンをロックする（イエローのみは登録可）
+    </label>
+    <div id="register-lock-status" class="status"></div>
+  </details>
+
+  <details class="settings-section">
+    <summary><h2>⑤ 設定のエクスポート・インポート</h2></summary>
+    <p class="hint">
+      列マッピング・項目マッピング・重大度設定・Gemini APIキー・実績記録用WebアプリURLをJSONとして書き出せます。他の担当者はこのJSONを読み込むだけで同じ設定（チャットボット機能・実績記録含む）が使えます。
+      （管理表・タグ表・ルールブックのファイル自体は含まれません。各自でファイルを選択してください）<br />
+      ⚠️ このJSONにはGemini APIキーがそのまま含まれます。取り扱いには注意し、渡す相手を限定してください。
+      同じAPIキーを複数人で同時に使うと、無料枠のレート制限（一定時間あたりの利用回数上限）に達しやすくなる点もご留意ください。
+    </p>
+    <button type="button" id="export-btn">エクスポート（クリップボードにコピー）</button>
+    <textarea id="export-area" rows="6" placeholder="ここにJSONを貼り付けて「インポート」を押してください"></textarea>
+    <button type="button" id="import-btn">インポート</button>
+    <div id="import-status" class="status"></div>
+  </details>
+
+  <div class="settings-section" id="admin-lock-bar">
+    <h2>🔒 管理者用設定</h2>
+    <p id="admin-lock-status" class="status"></p>
+    <input type="password" id="admin-lock-passcode" style="width:100%;" placeholder="パスコード" autocomplete="off" />
+    <button type="button" id="admin-lock-btn" class="btn-primary">解除</button>
+  </div>
+
+  <details class="settings-section" id="settings-6" hidden>
+    <summary><h2>⑥ ページ側の項目マッピング</h2></summary>
+    <div id="fieldmap-target" class="status"></div>
+    <div id="fieldmap-list"></div>
+    <div class="add-row">
+      <input type="text" id="fieldmap-new-key" placeholder="新しい項目名（例: 楽天カテゴリ1）" />
+      <button type="button" id="fieldmap-new-btn">追加して指定する</button>
+    </div>
+  </details>
+
   <details class="settings-section" id="settings-7" hidden>
-    <summary><h2>⑦ チャットボット設定</h2></summary>
+    <summary><h2>⑦ 重大度設定（レッドカード／イエローカード）</h2></summary>
+    <div id="severity-list"></div>
+  </details>
+
+  <details class="settings-section" id="settings-8" hidden>
+    <summary><h2>⑧ モールURLのひな形（正しいURLをコピーする機能で使用）</h2></summary>
+    <div class="map-grid">
+      <label>楽天商品URL</label>
+      <input type="text" id="url-template-rakuten" style="width:100%;" />
+      <label>ヤフー商品URL</label>
+      <input type="text" id="url-template-yahoo" style="width:100%;" />
+    </div>
+    <button type="button" id="url-template-save" class="btn-primary">URLひな形を保存</button>
+    <div id="url-template-status" class="status"></div>
+  </details>
+
+  <details class="settings-section" id="settings-9" hidden>
+    <summary><h2>⑨ チャットボット設定</h2></summary>
     <input type="text" id="gemini-apikey" style="width:100%;" placeholder="Gemini APIキーを貼り付け" />
     <button type="button" id="gemini-apikey-save" class="btn-primary">APIキーを保存</button>
     <div id="gemini-apikey-status" class="status"></div>
@@ -105,41 +134,12 @@
     <button type="button" id="rulebook-save" class="btn-primary" style="display:none;">列マッピングを保存</button>
   </details>
 
-  <details class="settings-section" id="settings-8" hidden>
-    <summary><h2>⑧ 実績記録設定</h2></summary>
+  <details class="settings-section" id="settings-10" hidden>
+    <summary><h2>⑩ 実績記録設定</h2></summary>
     <input type="text" id="log-webhook-url" style="width:100%;" placeholder="https://script.google.com/macros/s/xxxxx/exec" />
     <button type="button" id="log-webhook-save" class="btn-primary">保存</button>
     <button type="button" id="log-webhook-clear" class="btn-secondary">記録を無効化</button>
     <div id="log-webhook-status" class="status"></div>
-  </details>
-
-  <details class="settings-section">
-    <summary><h2>⑨ 登録ボタンのロック</h2></summary>
-    <p class="hint">
-      ONにすると、通販する蔵の「登録」ボタンを押したときに、レッドカードが0件になっていなければ登録をブロックし、理由をお知らせします（イエローカードのみが残っている場合は登録できます）。
-      「確認する」を一度も実行していない場合・自社品番が管理表に見つからなかった場合・「確認する」の後に内容を変更した場合（再確認が必要）もブロック対象です。<br />
-      ⚠️ この機能が働くのは、ページを開いた時点でページレフェリーが読み込まれている場合のみです。🚩ボタンを押し忘れたページでも確実にブロックしたい場合は、あわせて「⑥ 自動起動設定」で対象URLを登録してください（自動起動していないページでは、そもそも拡張機能が動いていないためブロックできません）。<br />
-      会社ごとに運用が異なるため初期値はOFFで、設定のエクスポート/インポートにも含まれません（各自の環境で個別に設定してください）。
-    </p>
-    <label style="display:flex; align-items:center; gap:8px;">
-      <input type="checkbox" id="register-lock-enabled" />
-      レッドが0件になるまで登録ボタンをロックする（イエローのみは登録可）
-    </label>
-    <div id="register-lock-status" class="status"></div>
-  </details>
-
-  <details class="settings-section">
-    <summary><h2>⑩ 設定のエクスポート・インポート</h2></summary>
-    <p class="hint">
-      列マッピング・項目マッピング・重大度設定・Gemini APIキー・実績記録用WebアプリURLをJSONとして書き出せます。他の担当者はこのJSONを読み込むだけで同じ設定（チャットボット機能・実績記録含む）が使えます。
-      （管理表・タグ表・ルールブックのファイル自体は含まれません。各自でファイルを選択してください）<br />
-      ⚠️ このJSONにはGemini APIキーがそのまま含まれます。取り扱いには注意し、渡す相手を限定してください。
-      同じAPIキーを複数人で同時に使うと、無料枠のレート制限（一定時間あたりの利用回数上限）に達しやすくなる点もご留意ください。
-    </p>
-    <button type="button" id="export-btn">エクスポート（クリップボードにコピー）</button>
-    <textarea id="export-area" rows="6" placeholder="ここにJSONを貼り付けて「インポート」を押してください"></textarea>
-    <button type="button" id="import-btn">インポート</button>
-    <div id="import-status" class="status"></div>
   </details>
 
   <script src="../lib/xlsx.full.min.js"></script>
