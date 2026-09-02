@@ -852,18 +852,17 @@
     };
   }
 
-  // 実績の記録（スクショ＋レッド/イエロー件数をスプレッドシートに送信）。
-  // スクリーンショット撮影(chrome.tabs.captureVisibleTab)はcontent script側からは
-  // 実行できないため、background.js側でまとめて行う。
+  // 実績の記録（レッド/イエロー件数と、その内容のテキストをスプレッドシートに送信）。
+  // 以前はスクショも撮っていたが、確認するを短時間で連続実行されると、送信タイミングの
+  // ずれで別の実行の画面状態（実行中の表示等）を撮ってしまうことがあり、件数と内容が
+  // 食い違って見えることがあった。件数・内容そのものをテキストで残せば実行タイミングに
+  // 左右されないため、スクショはやめてテキストのみ送るようにした。
   function formatLogTimestamp(date) {
     const pad = (n) => String(n).padStart(2, "0");
     return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
   }
 
-  async function logCheckResult(webhookUrl, companyCode, workerNo, redCount, yellowCount) {
-    // ページ全体ではなく、拡張機能のパネル部分だけを切り抜いてもらうための座標情報。
-    // captureVisibleTab自体はタブの見える範囲全体を撮影するため、切り抜きはbackground.js側で行う。
-    const rect = panel.getBoundingClientRect();
+  async function logCheckResult(webhookUrl, companyCode, workerNo, redCount, yellowCount, redDetail, yellowDetail) {
     const response = await chrome.runtime.sendMessage({
       type: "logCheckResult",
       webhookUrl,
@@ -872,8 +871,8 @@
       timestamp: formatLogTimestamp(new Date()),
       redCount,
       yellowCount,
-      panelRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
-      devicePixelRatio: window.devicePixelRatio || 1,
+      redDetail,
+      yellowDetail,
     });
     if (!response || !response.ok) {
       throw new Error((response && response.error) || "記録に失敗しました");
@@ -1026,14 +1025,26 @@
       setProgress(100, "完了");
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      // レッド/イエロー件数が実際にパネルへ描画され、ブラウザの画面にも反映された
-      // 状態でスクショを撮ってもらうため、renderFindings等の描画が終わった後で送る
-      // （redCount/yellowCountの計算直後に送っていた頃は、captureVisibleTabの
-      // 実行タイミングによっては描画がまだ反映されていない状態のスクショが撮れてしまうことがあった）。
       if (state.logWebhookUrl && isLatestRun()) {
-        logCheckResult(state.logWebhookUrl, companyCode, domValues["作業者No"], redCount, yellowCount).catch((err) => {
+        const redDetail = findings
+          .filter((f) => f.severity === "red")
+          .map((f) => f.message)
+          .join("\n");
+        const yellowDetail = findings
+          .filter((f) => f.severity === "yellow")
+          .map((f) => f.message)
+          .join("\n");
+        logCheckResult(
+          state.logWebhookUrl,
+          companyCode,
+          domValues["作業者No"],
+          redCount,
+          yellowCount,
+          redDetail,
+          yellowDetail
+        ).catch((err) => {
           const errMessage = String((err && err.message) || err);
-          // スクショ撮影〜Apps Scriptへの送信が完了する前に、登録操作等でページが遷移して
+          // Apps Scriptへの送信が完了する前に、登録操作等でページが遷移して
           // タブ側のメッセージチャンネルが先に閉じてしまうと、Chromeがこの定型エラーを返す。
           // 実績ログへの記録は失敗するが登録処理自体には影響しない無害なケースなので、
           // console.error（chrome://extensionsの「エラー」に赤字で表示される）ではなく

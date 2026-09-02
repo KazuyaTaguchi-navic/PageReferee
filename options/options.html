@@ -123,7 +123,7 @@
   <details class="settings-section">
     <summary><h2>⑧ 実績記録設定（レッド/イエロー件数をスプレッドシートに自動記録）</h2></summary>
     <p class="hint">
-      「確認する」が完了するたびに、自社品番・日時・レッドカード/イエローカード件数・画面のスクリーンショットを
+      「確認する」が完了するたびに、自社品番・日時・レッドカード/イエローカード件数とその内容（検出メッセージ）を
       自動でGoogleスプレッドシートに1行ずつ追記します。<br />
       拡張機能から直接スプレッドシートに書き込むことはできない（読み込みと違い認証が必要）ため、
       <b>スプレッドシート側にGoogle Apps Script（GAS）を1回だけ設定</b>する必要があります。
@@ -132,10 +132,9 @@
       <b>設定手順</b><br />
       1. ルールブックのスプレッドシートを開き、メニュー「拡張機能」→「Apps Script」を開く<br />
       2. デフォルトのコードを全部消し、下のコードを貼り付けて保存する<br />
-      3. エディタ上部の関数選択プルダウンで「authorizeDriveAccess」を選び、▶（実行）を押す。「承認が必要です」と出るので、自分のGoogleアカウントを選んで許可する（スプレッドシートに加えて、スクショ保存用のGoogleドライブへのアクセス許可も求められます。これを先に済ませておかないと、デプロイ後にスクショの記録が「権限がありません」エラーになります）<br />
-      4. 右上の「デプロイ」→「新しいデプロイ」→種類を「ウェブアプリ」にする<br />
-      5. 「実行するユーザー」＝自分、「アクセスできるユーザー」＝全員、にして「デプロイ」<br />
-      6. 発行された「ウェブアプリのURL」をコピーし、下の欄に貼り付けて保存する
+      3. 右上の「デプロイ」→「新しいデプロイ」→種類を「ウェブアプリ」にする<br />
+      4. 「実行するユーザー」＝自分、「アクセスできるユーザー」＝全員、にして「デプロイ」<br />
+      5. 発行された「ウェブアプリのURL」をコピーし、下の欄に貼り付けて保存する
     </p>
     <textarea readonly rows="16" style="width:100%; font-family:monospace; font-size:12px;">function doGet(e) {
   return ContentService.createTextOutput('このURLはPOST専用です。拡張機能から呼び出されると正常に動作します（ブラウザで直接開いた場合はこの表示で問題ありません）。');
@@ -164,7 +163,7 @@ function doPost(e) {
     var sheet = ss.getSheetByName(sheetName);
     if (!sheet) {
       sheet = ss.insertSheet(sheetName);
-      sheet.appendRow(['作業者No', '自社品番', '日付', '時刻', 'レッドカード件数', 'イエローカード件数', 'スクショ']);
+      sheet.appendRow(['作業者No', '自社品番', '日付', '時刻', 'レッドカード件数', 'レッドカード詳細', 'イエローカード件数', 'イエローカード詳細']);
     }
     // 確認のたびに一番下までスクロールしなくて済むよう、新しい記録は常に
     // ヘッダーの直下（2行目）に挿入する（末尾に追記すると最新が一番下になり、
@@ -188,59 +187,21 @@ function doPost(e) {
     }
 
     sheet.getRange(row, 5).setValue(data.redCount);
-    sheet.getRange(row, 6).setValue(data.yellowCount);
-    if (data.image) {
-      var m = String(data.image).match(/^data:image\/(png|jpeg);base64,(.*)$/);
-      if (m) {
-        var blob = Utilities.newBlob(Utilities.base64Decode(m[2]), 'image/' + m[1], 'screenshot.png');
-        // セルの上に浮かぶ画像(insertImage)だと行をまたいで重なって見づらいため、
-        // 一度ドライブに保存してURL経由でセル内画像(CellImage)として貼り付ける
-        // （セル内画像はURL指定でしか作れない仕様のため）。行の高さ・列の幅に
-        // 収まるよう自動で縮小表示され、他のセルと重なることもない。
-        var folder = getOrCreateScreenshotFolder_();
-        var file = folder.createFile(blob);
-        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-        var imageUrl = 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w800';
-        var cellImage = SpreadsheetApp.newCellImage().setSourceUrl(imageUrl).setAltTextTitle(data.companyCode || 'スクショ').build();
-        sheet.getRange(row, 7).setValue(cellImage);
-        sheet.setRowHeight(row, 220);
-        sheet.setColumnWidth(7, 260);
-      }
-    }
+    sheet.getRange(row, 6).setValue(data.redDetail || '');
+    sheet.getRange(row, 7).setValue(data.yellowCount);
+    sheet.getRange(row, 8).setValue(data.yellowDetail || '');
+    sheet.getRange(row, 6).setWrap(true);
+    sheet.getRange(row, 8).setWrap(true);
+
     return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: String(err) })).setMimeType(ContentService.MimeType.JSON);
   }
-}
-
-function getOrCreateScreenshotFolder_() {
-  var name = 'ページレフェリー_実績ログ_スクショ';
-  var folders = DriveApp.getFoldersByName(name);
-  if (folders.hasNext()) return folders.next();
-  return DriveApp.createFolder(name);
-}
-
-// 設定手順3.でこの関数だけを選んで実行し、ドライブへのアクセスを許可するためのもの。
-// 名前の末尾に_を付けない（＝Apps Scriptの実行対象プルダウンに表示される名前にする）
-// のが重要（_付きの関数はプライベート扱いでプルダウンに出ない）。
-// getRootFolder()のような読み取りだけの呼び出しだと「閲覧のみ」の権限しか要求されず、
-// 実際にdoPostがフォルダ作成・共有設定を行うときに改めて権限エラーになってしまうため、
-// doPostと同じ書き込み操作（フォルダ作成・ファイル作成・共有設定）をここで実際に行い、
-// 必要な権限を確実に要求させる（テスト用に作ったファイルは最後にゴミ箱に入れて片付ける）。
-function authorizeDriveAccess() {
-  var folder = getOrCreateScreenshotFolder_();
-  var testFile = folder.createFile(Utilities.newBlob('authorize test', 'text/plain', 'authorize_test.txt'));
-  testFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  testFile.setTrashed(true);
 }</textarea>
     <p class="hint">
       未設定のままにしておけば、この機能は使われません（「確認する」の動作には影響しません）。<br />
-      スクショはGoogleドライブの「ページレフェリー_実績ログ_スクショ」フォルダにも1枚ずつ保存されます（セル内画像の表示に必要なため）。自動で削除はされないので、不要になった古いスクショは適宜フォルダ側で削除してください。<br />
-      すでにGASを設定済みで、スクショがセルの上に重なって見づらい場合は、Apps Scriptのコードを上の最新版に貼り替えて保存し、上の設定手順3.の通り「authorizeDriveAccess」を実行してドライブへのアクセスを許可してから、「デプロイ」→「デプロイを管理」→編集（鉛筆アイコン）→バージョンを「新しいバージョン」にして「デプロイ」してください（WebアプリのURLは変わらないので、拡張機能側の設定はそのままでOKです）。<br />
-      ⚠️「DriveApp...を呼び出す権限がありません」というエラーが出る場合は、ドライブへの書き込み権限がまだ許可されていません。コードを貼り替えて保存しただけでは自動的に許可されないため、必ずエディタ上で「authorizeDriveAccess」を選んで一度実行し、「承認が必要です」の画面で許可してください（実行時にこの画面が出ない場合は、すでに閲覧のみの権限で許可済みの可能性があります。その場合はGoogleアカウントの<a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">サードパーティ製アプリのアクセス権</a>からこのプロジェクトへのアクセスを一度削除し、もう一度「authorizeDriveAccess」を実行して許可し直してください）。<br />
-      ⚠️ 列の構成を「作業者No／自社品番／日付／時刻／レッドカード件数／イエローカード件数／スクショ」(A〜G列)に変更しました。すでに実績ログのシートがあり列構成が違う場合は、シート名（例: 「実績ログ」）を一度リネームして退避させ、次回の記録時に新しいシートを自動で作り直させるのが簡単です（過去の記録はリネームしたシート側にそのまま残ります）。既存シートの列を手動で直したい場合は、A列の左に1列挿入して「作業者No」ヘッダーを追加し、以前からある「日時」列を「日付」「時刻」の2列に分けてください。<br />
-      ⚠️ 新しい記録が常に一番下に追記され、確認のたびに下までスクロールが必要だったため、新しい記録がヘッダーの直下（2行目）に入るように変更しました。すでにGASを設定済みの場合は、コードを上の最新版に貼り替えて保存し、「デプロイ」→「デプロイを管理」→編集（鉛筆アイコン）→バージョンを「新しいバージョン」にして「デプロイ」してください（WebアプリのURLは変わらないので、拡張機能側の設定はそのままでOKです）。<br />
-      ⚠️ 集計しやすいよう、シートを月単位（「実績ログ_202609」のような名前）に分けるようにしました。月が変わると最初の記録時に自動で新しいシートが作られます。すでにGASを設定済みの場合は、上記と同様にコードを最新版に貼り替えて再デプロイしてください。既存の「実績ログ」シートはそのまま残り、それ以降の記録だけ月別シートに入るようになります。
+      ⚠️ 以前はスクリーンショットも記録していましたが、「確認する」を短時間で連続実行すると、送信タイミングのずれで別の実行の画面（実行中の表示等）を撮ってしまい、件数と内容が食い違って見えることがありました。件数・内容そのものをテキストで残せば実行タイミングに左右されないため、スクショはやめてレッド/イエローカードの検出メッセージをテキストで記録するように変更しました（これに伴い、Googleドライブへのアクセス許可も不要になりました）。<br />
+      ⚠️ 列の構成を「作業者No／自社品番／日付／時刻／レッドカード件数／レッドカード詳細／イエローカード件数／イエローカード詳細」(A〜H列)に変更しました。すでに実績ログのシートがあり列構成が違う場合は、シート名を一度リネームして退避させ、次回の記録時に新しいシートを自動で作り直させるのが簡単です（過去の記録はリネームしたシート側にそのまま残ります）。すでにGASを設定済みの場合は、コードを上の最新版に貼り替えて保存し、「デプロイ」→「デプロイを管理」→編集（鉛筆アイコン）→バージョンを「新しいバージョン」にして「デプロイ」してください（WebアプリのURLは変わらないので、拡張機能側の設定はそのままでOKです）。
     </p>
     <input type="text" id="log-webhook-url" style="width:100%;" placeholder="https://script.google.com/macros/s/xxxxx/exec" />
     <button type="button" id="log-webhook-save" class="btn-primary">保存</button>
