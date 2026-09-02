@@ -1016,12 +1016,6 @@
       registerGuard.yellowCount = yellowCount;
       registerGuard.signature = computeFormSignature();
 
-      if (state.logWebhookUrl) {
-        logCheckResult(state.logWebhookUrl, companyCode, domValues["作業者No"], redCount, yellowCount).catch((err) => {
-          console.error("[ページレフェリー] 実績の記録に失敗しました", err);
-        });
-      }
-
       if (!isLatestRun()) return;
 
       renderFindings(findings, currentFieldMap);
@@ -1031,6 +1025,16 @@
 
       setProgress(100, "完了");
       await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // レッド/イエロー件数が実際にパネルへ描画され、ブラウザの画面にも反映された
+      // 状態でスクショを撮ってもらうため、renderFindings等の描画が終わった後で送る
+      // （redCount/yellowCountの計算直後に送っていた頃は、captureVisibleTabの
+      // 実行タイミングによっては描画がまだ反映されていない状態のスクショが撮れてしまうことがあった）。
+      if (state.logWebhookUrl && isLatestRun()) {
+        logCheckResult(state.logWebhookUrl, companyCode, domValues["作業者No"], redCount, yellowCount).catch((err) => {
+          console.error("[ページレフェリー] 実績の記録に失敗しました", err);
+        });
+      }
     } finally {
       hideProgress();
       checkBtn.disabled = false;
