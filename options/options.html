@@ -145,7 +145,22 @@ function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.openById('1D1lPUXQE2rCW1N_nvFHdJvgtWyY9Ff4VFVlNhBKiaA4');
-    var sheetName = '実績ログ';
+
+    // 日時("YYYY/MM/DD HH:MM:SS")は、フィルターや並び替えがしやすいよう文字列のまま
+    // 1列にせず、日付・時刻それぞれ本物の日付型セルとして分けて記録する。
+    // Dateオブジェクトをそのままセルに入れると、Apps Scriptの実行タイムゾーンと
+    // スプレッドシートのタイムゾーンの差の分だけ時刻がずれてしまう（例: 17:58が0:58に
+    // なる）ため、タイムゾーンに影響されないUTC基準の日数計算でSheetsのシリアル値を
+    // 直接求めて書き込む。
+    var ts = String(data.timestamp || '');
+    var m1 = ts.match(/^(\d{4})\/(\d{2})\/(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
+
+    // 集計しやすいよう月単位でシートを分ける（例: 「実績ログ_202609」）。翌月になった
+    // 最初の記録時に自動で新しいシートが作られる。年月は記録した日時（作業者側の
+    // タイムスタンプ）から取るため、月をまたぐ瞬間の実行タイミングのズレでApps Script
+    // 側の現在日時と食い違うことがない。
+    var yearMonth = m1 ? (m1[1] + m1[2]) : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMM');
+    var sheetName = '実績ログ_' + yearMonth;
     var sheet = ss.getSheetByName(sheetName);
     if (!sheet) {
       sheet = ss.insertSheet(sheetName);
@@ -159,14 +174,6 @@ function doPost(e) {
     sheet.getRange(row, 1).setValue(data.workerNo || '');
     sheet.getRange(row, 2).setValue(data.companyCode || '');
 
-    // 日時("YYYY/MM/DD HH:MM:SS")は、フィルターや並び替えがしやすいよう文字列のまま
-    // 1列にせず、日付・時刻それぞれ本物の日付型セルとして分けて記録する。
-    // Dateオブジェクトをそのままセルに入れると、Apps Scriptの実行タイムゾーンと
-    // スプレッドシートのタイムゾーンの差の分だけ時刻がずれてしまう（例: 17:58が0:58に
-    // なる）ため、タイムゾーンに影響されないUTC基準の日数計算でSheetsのシリアル値を
-    // 直接求めて書き込む。
-    var ts = String(data.timestamp || '');
-    var m1 = ts.match(/^(\d{4})\/(\d{2})\/(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
     if (m1) {
       var y = Number(m1[1]), mo = Number(m1[2]) - 1, d = Number(m1[3]);
       var hh = Number(m1[4]), mi = Number(m1[5]), se = Number(m1[6]);
@@ -232,7 +239,8 @@ function authorizeDriveAccess() {
       すでにGASを設定済みで、スクショがセルの上に重なって見づらい場合は、Apps Scriptのコードを上の最新版に貼り替えて保存し、上の設定手順3.の通り「authorizeDriveAccess」を実行してドライブへのアクセスを許可してから、「デプロイ」→「デプロイを管理」→編集（鉛筆アイコン）→バージョンを「新しいバージョン」にして「デプロイ」してください（WebアプリのURLは変わらないので、拡張機能側の設定はそのままでOKです）。<br />
       ⚠️「DriveApp...を呼び出す権限がありません」というエラーが出る場合は、ドライブへの書き込み権限がまだ許可されていません。コードを貼り替えて保存しただけでは自動的に許可されないため、必ずエディタ上で「authorizeDriveAccess」を選んで一度実行し、「承認が必要です」の画面で許可してください（実行時にこの画面が出ない場合は、すでに閲覧のみの権限で許可済みの可能性があります。その場合はGoogleアカウントの<a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">サードパーティ製アプリのアクセス権</a>からこのプロジェクトへのアクセスを一度削除し、もう一度「authorizeDriveAccess」を実行して許可し直してください）。<br />
       ⚠️ 列の構成を「作業者No／自社品番／日付／時刻／レッドカード件数／イエローカード件数／スクショ」(A〜G列)に変更しました。すでに実績ログのシートがあり列構成が違う場合は、シート名（例: 「実績ログ」）を一度リネームして退避させ、次回の記録時に新しいシートを自動で作り直させるのが簡単です（過去の記録はリネームしたシート側にそのまま残ります）。既存シートの列を手動で直したい場合は、A列の左に1列挿入して「作業者No」ヘッダーを追加し、以前からある「日時」列を「日付」「時刻」の2列に分けてください。<br />
-      ⚠️ 新しい記録が常に一番下に追記され、確認のたびに下までスクロールが必要だったため、新しい記録がヘッダーの直下（2行目）に入るように変更しました。すでにGASを設定済みの場合は、コードを上の最新版に貼り替えて保存し、「デプロイ」→「デプロイを管理」→編集（鉛筆アイコン）→バージョンを「新しいバージョン」にして「デプロイ」してください（WebアプリのURLは変わらないので、拡張機能側の設定はそのままでOKです）。
+      ⚠️ 新しい記録が常に一番下に追記され、確認のたびに下までスクロールが必要だったため、新しい記録がヘッダーの直下（2行目）に入るように変更しました。すでにGASを設定済みの場合は、コードを上の最新版に貼り替えて保存し、「デプロイ」→「デプロイを管理」→編集（鉛筆アイコン）→バージョンを「新しいバージョン」にして「デプロイ」してください（WebアプリのURLは変わらないので、拡張機能側の設定はそのままでOKです）。<br />
+      ⚠️ 集計しやすいよう、シートを月単位（「実績ログ_202609」のような名前）に分けるようにしました。月が変わると最初の記録時に自動で新しいシートが作られます。すでにGASを設定済みの場合は、上記と同様にコードを最新版に貼り替えて再デプロイしてください。既存の「実績ログ」シートはそのまま残り、それ以降の記録だけ月別シートに入るようになります。
     </p>
     <input type="text" id="log-webhook-url" style="width:100%;" placeholder="https://script.google.com/macros/s/xxxxx/exec" />
     <button type="button" id="log-webhook-save" class="btn-primary">保存</button>
