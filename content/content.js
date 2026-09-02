@@ -1032,6 +1032,16 @@
       // 実行タイミングによっては描画がまだ反映されていない状態のスクショが撮れてしまうことがあった）。
       if (state.logWebhookUrl && isLatestRun()) {
         logCheckResult(state.logWebhookUrl, companyCode, domValues["作業者No"], redCount, yellowCount).catch((err) => {
+          const errMessage = String((err && err.message) || err);
+          // スクショ撮影〜Apps Scriptへの送信が完了する前に、登録操作等でページが遷移して
+          // タブ側のメッセージチャンネルが先に閉じてしまうと、Chromeがこの定型エラーを返す。
+          // 実績ログへの記録は失敗するが登録処理自体には影響しない無害なケースなので、
+          // console.error（chrome://extensionsの「エラー」に赤字で表示される）ではなく
+          // console.warnに留めて、作業者を不安にさせないようにする。
+          if (errMessage.includes("message channel closed")) {
+            console.warn("[ページレフェリー] 実績の記録がページ遷移等により完了しませんでした（登録処理への影響はありません）", err);
+            return;
+          }
           console.error("[ページレフェリー] 実績の記録に失敗しました", err);
         });
       }
