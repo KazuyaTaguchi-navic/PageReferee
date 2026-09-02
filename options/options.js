@@ -710,6 +710,68 @@
     window.close();
   });
 
+  // ---------- 管理者ロック（③④⑤⑦⑧を作業者から隠す） ----------
+  // 作業者もこの設定画面自体は開けてしまうため、項目マッピング・重大度設定・チャットボット・
+  // 実績記録など、管理者だけが触るべき項目はパスコードを入力するまで表示しない。
+  // パスコードは平文のまま保存せず、SHA-256のハッシュ値だけをchrome.storage.localに保存する。
+  const ADMIN_LOCKED_SECTION_IDS = ["settings-3", "settings-4", "settings-5", "settings-7", "settings-8"];
+  const adminLockBar = document.getElementById("admin-lock-bar");
+  const adminLockStatus = document.getElementById("admin-lock-status");
+  const adminLockPasscodeInput = document.getElementById("admin-lock-passcode");
+  const adminLockBtn = document.getElementById("admin-lock-btn");
+
+  async function sha256Hex(text) {
+    const data = new TextEncoder().encode(text);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  function setAdminSectionsVisible(visible) {
+    ADMIN_LOCKED_SECTION_IDS.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.hidden = !visible;
+    });
+  }
+
+  async function initAdminLock() {
+    const state = await storage.getAll();
+    if (!state.adminPasscodeHash) {
+      adminLockStatus.textContent = "初回設定: パスコードを決めて入力し、「設定」を押してください。";
+      adminLockBtn.textContent = "設定";
+    } else {
+      adminLockStatus.textContent = "パスコードを入力してください。";
+      adminLockBtn.textContent = "解除";
+    }
+  }
+
+  adminLockBtn.addEventListener("click", async () => {
+    const value = adminLockPasscodeInput.value;
+    if (!value) return;
+    const state = await storage.getAll();
+    const hash = await sha256Hex(value);
+    if (!state.adminPasscodeHash) {
+      await storage.setPatch({ adminPasscodeHash: hash });
+      setAdminSectionsVisible(true);
+      adminLockBar.hidden = true;
+      return;
+    }
+    if (hash === state.adminPasscodeHash) {
+      setAdminSectionsVisible(true);
+      adminLockBar.hidden = true;
+    } else {
+      adminLockStatus.textContent = "パスコードが違います。";
+      adminLockPasscodeInput.value = "";
+    }
+  });
+
+  adminLockPasscodeInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") adminLockBtn.click();
+  });
+
+  initAdminLock();
+
   // ---------- 初期化 ----------
 
   async function init() {

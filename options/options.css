@@ -63,6 +63,17 @@ h1 {
   padding-bottom: 16px;
 }
 
+#admin-lock-bar {
+  padding: 16px 20px;
+  border-color: var(--accent);
+}
+#admin-lock-bar h2 {
+  margin-bottom: 8px;
+}
+#admin-lock-bar input {
+  margin-bottom: 8px;
+}
+
 .settings-section > summary {
   list-style: none;
   cursor: pointer;
