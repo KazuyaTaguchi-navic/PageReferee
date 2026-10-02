@@ -111,6 +111,13 @@
     if (!el) return "";
     if (entry.attr === "textContent") return (el.textContent || "").trim();
     if (entry.attr === "checked") return el.checked ? "true" : "false";
+    if (entry.attr === "selectedOptionText") {
+      if (el.tagName === "SELECT" && el.selectedIndex >= 0) {
+        const opt = el.options[el.selectedIndex];
+        return (opt && opt.textContent ? opt.textContent : "").trim();
+      }
+      return "";
+    }
     if ("value" in el) return el.value || "";
     return el.getAttribute(entry.attr || "value") || "";
   }
