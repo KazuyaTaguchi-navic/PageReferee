@@ -243,6 +243,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             yellowCount: message.yellowCount,
             redDetail: message.redDetail,
             yellowDetail: message.yellowDetail,
+            version: message.version,
           }),
         });
         const text = await res.text().catch(() => "");

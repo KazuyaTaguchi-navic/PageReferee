@@ -880,6 +880,7 @@
       yellowCount,
       redDetail,
       yellowDetail,
+      version: (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || "",
     });
     if (!response || !response.ok) {
       throw new Error((response && response.error) || "記録に失敗しました");
