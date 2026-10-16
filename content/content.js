@@ -19,7 +19,8 @@
   const storage = window.HinbanReferee && window.HinbanReferee.storage;
   const rules = window.HinbanReferee && window.HinbanReferee.rules;
   const rulebook = window.HinbanReferee && window.HinbanReferee.rulebook;
-  if (!storage || !rules || !rulebook) {
+  const subpages = window.HinbanReferee && window.HinbanReferee.subpages;
+  if (!storage || !rules || !rulebook || !subpages) {
     console.error("[ページレフェリー] 内部ライブラリの読み込みに失敗しました");
     return;
   }
@@ -450,8 +451,9 @@
     const el = panel.querySelector("#hr-datastatus");
     const mgmt = state.managementWorkbook ? state.managementWorkbook.fileName : "未読み込み";
     const tag = state.tagWorkbook ? state.tagWorkbook.fileName : "未読み込み";
-    // ファイル名が長いと1行につながって見にくいため、管理表・タグ表を別の行にする
-    el.textContent = `管理表: ${mgmt}\nタグ表: ${tag}`;
+    const attr = state.attributeRules ? state.attributeRules.fileName : "未読み込み";
+    // ファイル名が長いと1行につながって見にくいため、それぞれ別の行にする
+    el.textContent = `管理表: ${mgmt}\nタグ表: ${tag}\n決め事: ${attr}`;
   }
 
   function renderFindings(findings, fieldMap) {
@@ -887,6 +889,61 @@
     }
   }
 
+  // ---------- 楽天「SKU別 商品情報」「商品属性設定」の読み込み ----------
+  // どちらもメイン画面のボタンから別タブで開く画面で、メイン画面のDOMからは中身が見えない。
+  // ボタンが開くのと同じURLを裏で読み込み（＝保存済みの内容）、判定用のデータに変換する。
+  // ボタンはメイン画面で一度登録した後にしか表示されないため、ボタンが無ければ読み込まない。
+  const SUBPAGE_FETCH_TIMEOUT_MS = 15000;
+
+  async function fetchSubpageDocument(url) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), SUBPAGE_FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { credentials: "same-origin", signal: controller.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return new DOMParser().parseFromString(await res.text(), "text/html");
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // ボタンのonclick（例: searchRakutenSkuValue('creer-tanshi-005')）に入っている自社品番は
+  // 保存済みの値。メイン画面の自社品番欄を未保存のまま書き換えていても正しい画面を開けるよう、
+  // こちらを優先する。
+  function savedCompanyCodeFromButton(buttonKey) {
+    const entry = currentFieldMap[buttonKey];
+    let el = null;
+    try {
+      el = entry && entry.selector ? document.querySelector(entry.selector) : null;
+    } catch (e) {
+      el = null;
+    }
+    const m = el && (el.getAttribute("onclick") || "").match(/\(\s*['"]([^'"]+)['"]\s*\)/);
+    return m ? m[1] : null;
+  }
+
+  async function loadRakutenSubpages(domValues, companyCode) {
+    const registered = !!(domValues["楽天SKU別商品情報ボタン"] || domValues["楽天商品属性設定ボタン"]);
+    if (!registered) return { registered: false, sku: null, genre: null };
+
+    const code =
+      savedCompanyCodeFromButton("楽天SKU別商品情報ボタン") ||
+      savedCompanyCodeFromButton("楽天商品属性設定ボタン") ||
+      companyCode;
+    const { skuUrl, genreUrl } = subpages.buildSubpageUrls(code, location.href);
+    const load = async (url, parse) => {
+      try {
+        return parse(await fetchSubpageDocument(url), code);
+      } catch (err) {
+        const reason = err && err.name === "AbortError" ? "時間内に応答がありませんでした" : String((err && err.message) || err);
+        console.error("[ページレフェリー] サブ画面の読み込みに失敗しました", url, err);
+        return { ok: false, error: reason };
+      }
+    };
+    const [sku, genre] = await Promise.all([load(skuUrl, subpages.parseSkuPage), load(genreUrl, subpages.parseGenrePage)]);
+    return { registered: true, sku, genre };
+  }
+
   async function runCheck() {
     // 🚩ボタンの再クリックや拡張機能の再読み込みでcontent.jsが再注入されると、パネルは
     // 新しく作り直されるが、古いパネルで既に走っていた「確認する」（AIの誤字脱字チェック等で
@@ -959,6 +1016,10 @@
         state.productSheetConfigs
       );
 
+      setProgress(75, "SKU別 商品情報・商品属性設定を確認中…");
+      await nextFrame();
+      const rakutenSubpages = await loadRakutenSubpages(domValues, companyCode);
+
       setProgress(85, "判定中…");
       await nextFrame();
 
@@ -992,6 +1053,8 @@
         freeTextKeys: storage.FREE_TEXT_KEYS,
         copySourceLogicalKeys: storage.COPY_SOURCE_CHECK_KEYS,
         urlTemplates: state.urlTemplates,
+        rakutenSubpages,
+        attributeRules: state.attributeRules,
       });
 
       const typoSeverity = (state.severity && state.severity["誤字脱字チェック"]) || "none";

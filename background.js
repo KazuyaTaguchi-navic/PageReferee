@@ -23,7 +23,7 @@ async function injectPanel(tab, opts) {
     });
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ["lib/storage.js", "lib/rules.js", "lib/rulebook.js", "content/content.js"],
+      files: ["lib/storage.js", "lib/rules.js", "lib/rulebook.js", "lib/subpages.js", "content/content.js"],
     });
   } catch (err) {
     console.error("[ページレフェリー] パネルの注入に失敗しました", err);
@@ -47,7 +47,7 @@ async function registerAutoLaunch(pattern) {
     id: AUTO_LAUNCH_SCRIPT_ID,
     matches: [pattern],
     css: ["content/content.css"],
-    js: ["content/auto-flag.js", "lib/storage.js", "lib/rules.js", "lib/rulebook.js", "content/content.js"],
+    js: ["content/auto-flag.js", "lib/storage.js", "lib/rules.js", "lib/rulebook.js", "lib/subpages.js", "content/content.js"],
     runAt: "document_idle",
   };
   const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [AUTO_LAUNCH_SCRIPT_ID] });

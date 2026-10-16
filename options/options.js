@@ -259,6 +259,33 @@
     tagSaveStatus.textContent = `タグ表設定を保存しました。（${new Date().toLocaleTimeString("ja-JP")}）`;
   });
 
+  // ---------- ②-2 商品属性の決め事ファイル ----------
+
+  const attrRulesFileInput = document.getElementById("attr-rules-file");
+  const attrRulesStatus = document.getElementById("attr-rules-status");
+
+  function describeAttributeRules(rulesData, prefix) {
+    const s = rulesData.stats || {};
+    return (
+      `${prefix}: ${rulesData.fileName}（ジャンル${s.genreCount}件・グループ${s.groupCount}件、` +
+      `うちオレンジ項目のあるグループ${s.orangeGroupCount}件） / 読み込み日時: ${new Date(rulesData.importedAt).toLocaleString("ja-JP")}`
+    );
+  }
+
+  attrRulesFileInput.addEventListener("change", async () => {
+    const file = attrRulesFileInput.files[0];
+    if (!file) return;
+    attrRulesStatus.textContent = "読み込み中...（ファイルが大きいため数秒かかることがあります）";
+    try {
+      const parsed = await workbookLib.parseAttributeRulesFile(file);
+      await storage.setPatch({ attributeRules: parsed });
+      attrRulesStatus.textContent = describeAttributeRules(parsed, "読み込み完了");
+    } catch (err) {
+      console.error(err);
+      attrRulesStatus.textContent = "読み込みに失敗しました: " + (err && err.message ? err.message : String(err));
+    }
+  });
+
   // ---------- ③ ページ側の項目マッピング ----------
 
   const fieldmapTargetEl = document.getElementById("fieldmap-target");
@@ -438,6 +465,16 @@
     {
       label: "SKU情報",
       keys: ["SKU情報"],
+    },
+    {
+      label: "楽天SKU別・商品属性",
+      keys: [
+        "楽天SKU管理番号",
+        "楽天商品属性の必須項目",
+        "楽天商品属性のオレンジ項目",
+        "楽天SKU別・商品属性の確認不可",
+        "楽天SKU別・商品属性の登録後リマインド",
+      ],
     },
   ];
 
@@ -785,6 +822,9 @@
       tagStatus.textContent = `読み込み済み: ${state.tagWorkbook.fileName} / 読み込み日時: ${new Date(state.tagWorkbook.importedAt).toLocaleString("ja-JP")}`;
       renderTagSheetConfig(state.tagWorkbook, state.tagSheetConfig);
       renderTagDictConfig(state.tagWorkbook, state.tagDictionaryConfig);
+    }
+    if (state.attributeRules) {
+      attrRulesStatus.textContent = describeAttributeRules(state.attributeRules, "読み込み済み");
     }
     renderFieldMapList(state);
     renderSeverityList(state);

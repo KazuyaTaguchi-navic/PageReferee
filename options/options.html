@@ -45,6 +45,17 @@
   </details>
 
   <details class="settings-section">
+    <summary><h2>②-2 商品属性の決め事ファイル</h2></summary>
+    <p class="hint">
+      「【決め事】商品属性の推奨値・任意項目」(.xlsx)を選択してください。メイン画面で一度登録した後に表示される「商品属性設定」で、
+      ジャンルごとに入力が必要な項目（「★属性早見表」で背景がオレンジの項目）が入力されているかのチェックに使います。
+      決め事が更新されたら、ダウンロードし直して選び直してください（未設定の場合、オレンジ項目のチェックだけ行われません）。
+    </p>
+    <input type="file" id="attr-rules-file" accept=".xlsx" />
+    <div id="attr-rules-status" class="status"></div>
+  </details>
+
+  <details class="settings-section">
     <summary><h2>③ 自動起動設定</h2></summary>
     <p class="hint">
       ここで指定したURLで始まるページを開くと、🚩ボタンを押さなくても自動的にパネルが表示されます。
