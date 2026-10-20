@@ -234,7 +234,12 @@
   // ほとんどの場合そのままfieldMapを引けば該当要素が見つかる（copy_residue_商品名の
   // ような合成キーはtargetKey側に元の項目名"商品名"が入っている）。
   // SKU情報だけは行ごとに要素が分かれる特殊構造のため、番号から行要素を特定する。
+  // 「SKU別 商品情報」「商品属性設定」の画面での指摘は、入力欄のname（targetName）で直接引く。
   function resolveTargetElement(finding, fieldMap) {
+    if (finding.targetName) {
+      return document.getElementsByName(finding.targetName)[0] || null;
+    }
+
     const tryKey = (key) => {
       const entry = fieldMap[key];
       if (!entry || !entry.selector) return null;
@@ -270,6 +275,24 @@
     }
 
     return null;
+  }
+
+  // 「商品属性設定」は複数のジャンルをタブで切り替える画面で、選ばれていないタブの中身は
+  // 非表示になっている。移動先の入力欄が別のタブにある場合は、先にそのタブを開く。
+  function revealTabPaneOf(el) {
+    const pane = el.closest(".tab-pane");
+    if (!pane || !pane.id || pane.classList.contains("active")) return;
+    const tabLink = Array.from(document.querySelectorAll(".nav-link[data-bs-target]")).find(
+      (link) => link.getAttribute("data-bs-target") === "#" + pane.id
+    );
+    if (tabLink) tabLink.click();
+  }
+
+  // サブ画面の入力欄へ移動したら、そのまま入力を始められるようカーソルも合わせる。
+  // スクロールはhighlightElementの滑らかなスクロールに任せ、タブの切り替え表示を待ってから合わせる。
+  const FOCUS_AFTER_REVEAL_DELAY_MS = 200;
+  function focusInputLater(el) {
+    setTimeout(() => el.focus({ preventScroll: true }), FOCUS_AFTER_REVEAL_DELAY_MS);
   }
 
   // ---------- パネルUI ----------
@@ -456,7 +479,8 @@
     el.textContent = `管理表: ${mgmt}\nタグ表: ${tag}\n決め事: ${attr}`;
   }
 
-  function renderFindings(findings, fieldMap) {
+  // options.emptyMessage: 指摘が0件のときの表示（省略時は「問題は見つかりませんでした 🎉」）
+  function renderFindings(findings, fieldMap, options) {
     const redCount = findings.filter((f) => f.severity === "red").length;
     const yellowCount = findings.filter((f) => f.severity === "yellow").length;
 
@@ -471,7 +495,7 @@
     if (findings.length === 0) {
       const li = document.createElement("li");
       li.className = "hr-finding-empty";
-      li.textContent = "問題は見つかりませんでした 🎉";
+      li.textContent = (options && options.emptyMessage) || "問題は見つかりませんでした 🎉";
       list.appendChild(li);
       return;
     }
@@ -490,7 +514,10 @@
 
         li.addEventListener("click", () => {
           const target = resolveTargetElement(f, fieldMap);
-          if (target) highlightElement(target, f.severity);
+          if (!target) return;
+          if (f.targetName) revealTabPaneOf(target);
+          highlightElement(target, f.severity);
+          if (f.targetName) focusInputLater(target);
         });
 
         if (f.copyValue !== undefined && f.copyValue !== null && f.copyValue !== "") {
@@ -944,6 +971,31 @@
     return { registered: true, sku, genre };
   }
 
+  // ---------- 「SKU別 商品情報」「商品属性設定」の画面での確認 ----------
+  // この2画面も自動起動のURLに含まれるためパネルが開くが、管理表との照合などメイン画面用の
+  // 確認はできない。その画面の入力欄だけを、まだ「更新」していない入力中の内容で確認する
+  // （指摘をクリックすると該当する入力欄へ移動する）。実績ログへの記録はメイン画面の確認のみ。
+  const SUBPAGE_TITLES = { sku: "SKU別 商品情報", genre: "商品属性設定" };
+
+  async function runSubpageCheck(subpageType, state, isLatestRun) {
+    setProgress(60, `「${SUBPAGE_TITLES[subpageType]}」の入力内容を確認中…`);
+    await nextFrame();
+    const parse = subpageType === "sku" ? subpages.parseSkuPage : subpages.parseGenrePage;
+    const findings = rules.runSubpageChecks({
+      subpageType,
+      parsed: parse(document, null, { live: true }),
+      companyCode: subpages.pageCompanyCode(document),
+      attributeRules: state.attributeRules,
+      severityMap: state.severity,
+    });
+    if (!isLatestRun()) return;
+    renderFindings(findings, currentFieldMap, {
+      emptyMessage: "問題は見つかりませんでした 🎉\n入力した内容は、画面上部の「更新」ボタンで保存してください",
+    });
+    setProgress(100, "完了");
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+
   async function runCheck() {
     // 🚩ボタンの再クリックや拡張機能の再読み込みでcontent.jsが再注入されると、パネルは
     // 新しく作り直されるが、古いパネルで既に走っていた「確認する」（AIの誤字脱字チェック等で
@@ -974,6 +1026,12 @@
       currentFieldMap = Object.assign({}, storage.DEFAULT_FIELD_MAP, state.domFieldMap || {});
       renderDataStatus(state);
       registerGuard.enabled = !!state.registerLockEnabled;
+
+      const subpageType = subpages.detectSubpageType(document);
+      if (subpageType) {
+        await runSubpageCheck(subpageType, state, isLatestRun);
+        return;
+      }
 
       setProgress(35, "ページの入力内容を取得中…");
       await nextFrame();

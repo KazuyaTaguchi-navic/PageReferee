@@ -271,6 +271,7 @@
   color: #4ade80;
   padding: 8px;
   text-align: center;
+  white-space: pre-line;
 }
 
 #hinban-referee-panel .hr-suggestions {
