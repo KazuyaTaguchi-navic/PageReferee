@@ -479,7 +479,12 @@
     el.textContent = `管理表: ${mgmt}\nタグ表: ${tag}\n決め事: ${attr}`;
   }
 
-  // options.emptyMessage: 指摘が0件のときの表示（省略時は「問題は見つかりませんでした 🎉」）
+  // severity "ok"は、別画面（SKU別 商品情報・商品属性設定・セット構成）が正しく設定されていた
+  // ことを示すグリーン表示。件数には含めず、レッド・イエローの下に並べる。
+  const SEVERITY_ORDER = { red: 0, yellow: 1, ok: 2 };
+  const SEVERITY_ICONS = { red: "🟥 ", yellow: "🟨 ", ok: "🟩 " };
+
+  // options.emptyMessage: レッド・イエローが0件のときの表示（省略時は「問題は見つかりませんでした 🎉」）
   function renderFindings(findings, fieldMap, options) {
     const redCount = findings.filter((f) => f.severity === "red").length;
     const yellowCount = findings.filter((f) => f.severity === "yellow").length;
@@ -492,24 +497,24 @@
     const list = panel.querySelector("#hr-findings");
     list.innerHTML = "";
 
-    if (findings.length === 0) {
+    if (redCount + yellowCount === 0) {
       const li = document.createElement("li");
       li.className = "hr-finding-empty";
       li.textContent = (options && options.emptyMessage) || "問題は見つかりませんでした 🎉";
       list.appendChild(li);
-      return;
+      if (findings.length === 0) return;
     }
 
     findings
       .slice()
-      .sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "red" ? -1 : 1))
+      .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])
       .forEach((f) => {
         const li = document.createElement("li");
         li.className = "hr-finding hr-finding-" + f.severity;
 
         const textSpan = document.createElement("span");
         textSpan.className = "hr-finding-text";
-        textSpan.textContent = (f.severity === "red" ? "🟥 " : "🟨 ") + f.message;
+        textSpan.textContent = (SEVERITY_ICONS[f.severity] || "") + f.message;
         li.appendChild(textSpan);
 
         li.addEventListener("click", () => {
@@ -949,26 +954,73 @@
     return m ? m[1] : null;
   }
 
-  async function loadRakutenSubpages(domValues, companyCode) {
-    const registered = !!(domValues["楽天SKU別商品情報ボタン"] || domValues["楽天商品属性設定ボタン"]);
-    if (!registered) return { registered: false, sku: null, genre: null };
+  // メイン画面で一度登録した後かどうか。別画面（セット構成も含む）は登録後でないと入力できない
+  // ため、登録後にしか表示されない「SKU別 商品情報」「商品属性設定」のボタンの有無を目安にする。
+  function isRegisteredProduct(domValues) {
+    return !!(domValues["楽天SKU別商品情報ボタン"] || domValues["楽天商品属性設定ボタン"]);
+  }
 
-    const code =
-      savedCompanyCodeFromButton("楽天SKU別商品情報ボタン") ||
-      savedCompanyCodeFromButton("楽天商品属性設定ボタン") ||
-      companyCode;
+  function savedProductCode(companyCode) {
+    return savedCompanyCodeFromButton("楽天SKU別商品情報ボタン") || savedCompanyCodeFromButton("楽天商品属性設定ボタン") || companyCode;
+  }
+
+  // 別画面を読み込めなかった理由（指摘に表示する）。原因を調べられるようコンソールにも残す。
+  function describeLoadError(err, url) {
+    console.error("[ページレフェリー] サブ画面の読み込みに失敗しました", url, err);
+    return err && err.name === "AbortError" ? "時間内に応答がありませんでした" : String((err && err.message) || err);
+  }
+
+  async function loadRakutenSubpages(domValues, companyCode) {
+    if (!isRegisteredProduct(domValues)) return { registered: false, sku: null, genre: null };
+
+    const code = savedProductCode(companyCode);
     const { skuUrl, genreUrl } = subpages.buildSubpageUrls(code, location.href);
     const load = async (url, parse) => {
       try {
         return parse(await fetchSubpageDocument(url), code);
       } catch (err) {
-        const reason = err && err.name === "AbortError" ? "時間内に応答がありませんでした" : String((err && err.message) || err);
-        console.error("[ページレフェリー] サブ画面の読み込みに失敗しました", url, err);
-        return { ok: false, error: reason };
+        return { ok: false, error: describeLoadError(err, url) };
       }
     };
     const [sku, genre] = await Promise.all([load(skuUrl, subpages.parseSkuPage), load(genreUrl, subpages.parseGenrePage)]);
     return { registered: true, sku, genre };
+  }
+
+  // ---------- セット構成の読み込み ----------
+  // セット商品は、基本情報の「セット構成の登録」ボタンから開く画面で構成品を登録する。ボタンと
+  // 同じ一覧画面を裏で読み込み（登録の有無と親SKUごとの編集画面へのリンク）、さらに親SKUごとの
+  // 編集画面を読み込んで、子商品のメーカー品番と数量（＝「登録」済みの内容）を取り出す。
+  async function loadSetComposition(code) {
+    const searchUrl = subpages.buildSetSearchUrl(code, location.href);
+    let search;
+    try {
+      search = subpages.parseSetSearchPage(await fetchSubpageDocument(searchUrl), code, searchUrl);
+    } catch (err) {
+      return { search: { ok: false, error: describeLoadError(err, searchUrl) }, entries: [] };
+    }
+    if (!search.ok) return { search, entries: [] };
+    const entries = await Promise.all(
+      search.groups.map(async (group) => {
+        if (!group.entryUrl) return { ok: false, error: "セット構成の編集画面へのリンクが見つかりませんでした" };
+        try {
+          return subpages.parseSetEntryPage(await fetchSubpageDocument(group.entryUrl), group.parentSku);
+        } catch (err) {
+          return { ok: false, error: describeLoadError(err, group.entryUrl) };
+        }
+      })
+    );
+    return { search, entries };
+  }
+
+  // 確認の対象外の画面で「確認する」を押したときの案内（件数のカードは出さない）
+  function renderNotice(text) {
+    panel.querySelector("#hr-summary").style.display = "none";
+    const list = panel.querySelector("#hr-findings");
+    list.innerHTML = "";
+    const li = document.createElement("li");
+    li.className = "hr-finding-notice";
+    li.textContent = text;
+    list.appendChild(li);
   }
 
   // ---------- 「SKU別 商品情報」「商品属性設定」の画面での確認 ----------
@@ -1028,6 +1080,14 @@
       registerGuard.enabled = !!state.registerLockEnabled;
 
       const subpageType = subpages.detectSubpageType(document);
+      if (subpageType === "set") {
+        // セット構成の画面には親商品のメーカー品番が無く、構成品が正しいかを判断できないため、
+        // メイン画面での確認を案内する（メイン画面の確認はこの画面で「登録」した内容を読み込んで判定する）
+        renderNotice(
+          "この画面（セット構成）では確認は行いません。\n構成品が正しく登録されているかは、この画面で「登録」した後、メイン画面で「確認する」を押すと確認できます。"
+        );
+        return;
+      }
       if (subpageType) {
         await runSubpageCheck(subpageType, state, isLatestRun);
         return;
@@ -1074,9 +1134,15 @@
         state.productSheetConfigs
       );
 
-      setProgress(75, "SKU別 商品情報・商品属性設定を確認中…");
+      // セット構成も、ほかの別画面と同じくメイン画面の登録後でないと登録できないため、
+      // 登録後のセット商品のときだけ読み込む
+      const isSet = rules.isSetProduct(domValues);
+      setProgress(75, isSet ? "SKU別 商品情報・商品属性設定・セット構成を確認中…" : "SKU別 商品情報・商品属性設定を確認中…");
       await nextFrame();
-      const rakutenSubpages = await loadRakutenSubpages(domValues, companyCode);
+      const [rakutenSubpages, setComposition] = await Promise.all([
+        loadRakutenSubpages(domValues, companyCode),
+        isSet && isRegisteredProduct(domValues) ? loadSetComposition(savedProductCode(companyCode)) : Promise.resolve(null),
+      ]);
 
       setProgress(85, "判定中…");
       await nextFrame();
@@ -1113,6 +1179,7 @@
         urlTemplates: state.urlTemplates,
         rakutenSubpages,
         attributeRules: state.attributeRules,
+        setComposition,
       });
 
       const typoSeverity = (state.severity && state.severity["誤字脱字チェック"]) || "none";
@@ -1222,6 +1289,9 @@
     if (!isExtensionContextValid()) return;
     const btn = e.target.closest && e.target.closest('input[name="entry"].entry_btn');
     if (!btn) return;
+    // セット構成の編集画面にも同じname/classの「登録」ボタンがあり、ロックがONのときにその画面でも
+    // パネルが開いていると、構成品の登録までブロックしてしまっていた。ロックするのはメイン画面の登録だけにする。
+    if (!subpages.isGoodsEntryPage(document)) return;
 
     const reasons = [];
     if (registerGuard.checking) {
