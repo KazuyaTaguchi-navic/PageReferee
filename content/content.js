@@ -529,7 +529,9 @@
           const copyBtn = document.createElement("button");
           copyBtn.type = "button";
           copyBtn.className = "hr-finding-copy";
-          copyBtn.title = "管理表の値をコピー";
+          // 管理表の値だけでなく、今日の日付（メーカーサイズ）・自社品番・楽天側の値など、
+          // 入力すべき値をコピーする指摘があるため、表示は「正しい値をコピー」に統一する
+          copyBtn.title = "正しい値をコピー";
           copyBtn.textContent = "📋";
           copyBtn.addEventListener("click", (e) => {
             e.stopPropagation();
