@@ -466,7 +466,7 @@
     },
     {
       label: "SKU情報",
-      keys: ["SKU情報"],
+      keys: ["SKU情報", "SKU情報のメーカーサイズ"],
     },
     {
       label: "楽天SKU別・商品属性",
