@@ -243,6 +243,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             yellowCount: message.yellowCount,
             redDetail: message.redDetail,
             yellowDetail: message.yellowDetail,
+            greenCount: message.greenCount,
+            greenDetail: message.greenDetail,
             version: message.version,
           }),
         });

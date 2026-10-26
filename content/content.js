@@ -895,7 +895,7 @@
     };
   }
 
-  // 実績の記録（レッド/イエロー件数と、その内容のテキストをスプレッドシートに送信）。
+  // 実績の記録（レッド/イエロー/グリーン件数と、その内容のテキストをスプレッドシートに送信）。
   // 以前はスクショも撮っていたが、確認するを短時間で連続実行されると、送信タイミングの
   // ずれで別の実行の画面状態（実行中の表示等）を撮ってしまうことがあり、件数と内容が
   // 食い違って見えることがあった。件数・内容そのものをテキストで残せば実行タイミングに
@@ -905,7 +905,7 @@
     return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
   }
 
-  async function logCheckResult(webhookUrl, companyCode, workerNo, redCount, yellowCount, redDetail, yellowDetail) {
+  async function logCheckResult(webhookUrl, companyCode, workerNo, redCount, yellowCount, redDetail, yellowDetail, greenCount, greenDetail) {
     const response = await chrome.runtime.sendMessage({
       type: "logCheckResult",
       webhookUrl,
@@ -916,6 +916,8 @@
       yellowCount,
       redDetail,
       yellowDetail,
+      greenCount,
+      greenDetail,
       version: (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || "",
     });
     if (!response || !response.ok) {
@@ -1232,6 +1234,10 @@
           .filter((f) => f.severity === "yellow")
           .map((f) => f.message)
           .join("\n");
+        // 画面でグリーン（正しく設定されている）と表示した項目も、その時点の状態として残す。
+        // レッド/イエローとあわせて見れば、各項目が「設定済み」か「未設定・要確認」かが分かる。
+        const greenFindings = findings.filter((f) => f.severity === "ok");
+        const greenDetail = greenFindings.map((f) => f.message).join("\n");
         logCheckResult(
           state.logWebhookUrl,
           companyCode,
@@ -1239,7 +1245,9 @@
           redCount,
           yellowCount,
           redDetail,
-          yellowDetail
+          yellowDetail,
+          greenFindings.length,
+          greenDetail
         ).catch((err) => {
           const errMessage = String((err && err.message) || err);
           // Apps Scriptへの送信が完了する前に、登録操作等でページが遷移して
