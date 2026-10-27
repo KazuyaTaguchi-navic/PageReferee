@@ -20,7 +20,8 @@
   const rules = window.HinbanReferee && window.HinbanReferee.rules;
   const rulebook = window.HinbanReferee && window.HinbanReferee.rulebook;
   const subpages = window.HinbanReferee && window.HinbanReferee.subpages;
-  if (!storage || !rules || !rulebook || !subpages) {
+  const discontinued = window.HinbanReferee && window.HinbanReferee.discontinued;
+  if (!storage || !rules || !rulebook || !subpages || !discontinued) {
     console.error("[ページレフェリー] 内部ライブラリの読み込みに失敗しました");
     return;
   }
@@ -59,6 +60,8 @@
 
   let currentFieldMap = storage.DEFAULT_FIELD_MAP;
   let currentSkuElements = [];
+  // 確認のモード（"create"=ページ作成 / "discontinued"=廃盤処理）。パネルを開くたびにページ作成から始まる
+  let currentMode = "create";
   let pickerActive = false;
   let pickerTargetKey = null;
   let pickerHoverEl = null;
@@ -140,6 +143,13 @@
       makerSize: valueOf(row, '[name="pd_size_code[]"]'),
       maxPoint: valueOf(row, '[name="max_point[]"]'),
       orderPoint: valueOf(row, '[name="order_point[]"]'),
+      // 発注種別の欄は発注機能が有効なときだけ画面にある。欄が無ければundefined（空白と区別するため）
+      orderType: (row.querySelector('[name="order_type[]"]') || {}).value,
+      orderTypeText: (() => {
+        const sel = row.querySelector('[name="order_type[]"]');
+        const opt = sel && sel.selectedOptions && sel.selectedOptions[0];
+        return opt ? opt.textContent.trim() : "";
+      })(),
     }));
   }
 
@@ -303,6 +313,7 @@
     <div class="hr-header" id="hr-drag-handle">
       <span class="hr-title">
         🚩 ページレフェリー
+        <span class="hr-mode-badge" id="hr-mode-badge" style="display:none;">廃盤処理モード</span>
         <button type="button" id="hr-btn-minimize" class="hr-btn-minimize" title="最小化">▸</button>
       </span>
       <span class="hr-header-btns">
@@ -312,6 +323,10 @@
     <div class="hr-body">
       <div class="hr-datastatus" id="hr-datastatus">データ未読み込み</div>
       <div class="hr-picker-banner" id="hr-picker-banner" style="display:none;"></div>
+      <div class="hr-mode" id="hr-mode" role="radiogroup" aria-label="モード">
+        <label class="hr-mode-opt"><input type="radio" name="hr-mode" value="create" checked> ページ作成</label>
+        <label class="hr-mode-opt"><input type="radio" name="hr-mode" value="discontinued"> 廃盤処理</label>
+      </div>
       <div class="hr-actions">
         <button type="button" id="hr-btn-check" class="hr-btn-check">🔍 確認する</button>
         <button type="button" id="hr-btn-options" class="hr-btn-secondary">⚙ 設定を開く</button>
@@ -543,6 +558,19 @@
             });
           });
           li.appendChild(copyBtn);
+        }
+
+        if (f.linkUrl) {
+          const linkBtn = document.createElement("button");
+          linkBtn.type = "button";
+          linkBtn.className = "hr-finding-copy";
+          linkBtn.title = f.linkLabel || "開く";
+          linkBtn.textContent = "🔗";
+          linkBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            window.open(f.linkUrl, "_blank", "noopener");
+          });
+          li.appendChild(linkBtn);
         }
 
         list.appendChild(li);
@@ -1052,6 +1080,20 @@
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
 
+  // 廃盤処理モードの「確認する」。管理表・別画面は使わず、メイン画面の入力内容だけを確認する。
+  const DISCONTINUED_STATUS_TEXT = "廃盤処理モード: 管理表は使わず、廃盤処理で決まっている値になっているかを確認します";
+
+  async function runDiscontinuedCheck(isLatestRun) {
+    setProgress(40, "ページの入力内容を取得中…");
+    await nextFrame();
+    const findings = discontinued.runChecks(collectDomValues(currentFieldMap));
+    if (!isLatestRun()) return;
+    renderFindings(findings, currentFieldMap, { emptyMessage: "廃盤処理の設定はすべて正しくなっています 🎉" });
+    renderTagCandidates([], null);
+    setProgress(100, "完了");
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+
   async function runCheck() {
     // 🚩ボタンの再クリックや拡張機能の再読み込みでcontent.jsが再注入されると、パネルは
     // 新しく作り直されるが、古いパネルで既に走っていた「確認する」（AIの誤字脱字チェック等で
@@ -1082,6 +1124,18 @@
       currentFieldMap = Object.assign({}, storage.DEFAULT_FIELD_MAP, state.domFieldMap || {});
       renderDataStatus(state);
       registerGuard.enabled = !!state.registerLockEnabled;
+
+      if (currentMode === "discontinued") {
+        // 廃盤処理では登録ボタンのロックと実績ログは使わない
+        registerGuard.enabled = false;
+        panel.querySelector("#hr-datastatus").textContent = DISCONTINUED_STATUS_TEXT;
+        if (subpages.detectSubpageType(document)) {
+          renderNotice("廃盤処理の確認は、商品情報のメイン画面で行います。");
+          return;
+        }
+        await runDiscontinuedCheck(isLatestRun);
+        return;
+      }
 
       const subpageType = subpages.detectSubpageType(document);
       if (subpageType === "set") {
@@ -1282,6 +1336,28 @@
     });
   });
 
+  // ---------- モード切り替え（ページ作成／廃盤処理） ----------
+  function setMode(mode) {
+    currentMode = mode;
+    const isDiscontinued = mode === "discontinued";
+    panel.classList.toggle("hr-mode-discontinued", isDiscontinued);
+    panel.querySelector("#hr-mode-badge").style.display = isDiscontinued ? "inline-block" : "none";
+    // 前のモードの結果が残ったままだと取り違えるので消す
+    panel.querySelector("#hr-summary").style.display = "none";
+    panel.querySelector("#hr-findings").innerHTML = "";
+    renderTagCandidates([], null);
+    if (isDiscontinued) {
+      panel.querySelector("#hr-datastatus").textContent = DISCONTINUED_STATUS_TEXT;
+    } else {
+      storage.getAll().then(renderDataStatus).catch((err) => console.error("[ページレフェリー] 読み込み状況の表示に失敗しました", err));
+    }
+  }
+  panel.querySelectorAll('input[name="hr-mode"]').forEach((radio) => {
+    radio.addEventListener("change", () => {
+      if (radio.checked) setMode(radio.value);
+    });
+  });
+
   // ---------- 登録ボタンのロック ----------
   // する蔵側の独自onclick（chkInputSkucode()）より先に横取りする必要があるため、
   // documentのキャプチャフェーズで拾ってstopImmediatePropagationする（バブリングフェーズや
@@ -1291,6 +1367,7 @@
   // 設定でロックがONの会社では登録をブロックする、というシンプルな設計にしている。
   function handleRegisterGuardClick(e) {
     if (!registerGuard.enabled) return;
+    if (currentMode === "discontinued") return;
     // 拡張機能が無効化・削除・更新された場合、chrome.runtimeは使えなくなるがこの
     // クリックリスナー自体はページに残り続け、開き直すまで動き続けてしまう
     // （sankei-se-5261rl-setの登録がロックされたまま拡張機能を削除しても解除できなかった

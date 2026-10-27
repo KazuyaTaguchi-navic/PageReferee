@@ -413,3 +413,28 @@ body.hr-picker-active * {
   outline: 2px solid #22d3ee !important;
   outline-offset: 1px;
 }
+
+/* モード切り替え（ページ作成／廃盤処理） */
+#hinban-referee-panel .hr-mode {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+#hinban-referee-panel .hr-mode-opt {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+#hinban-referee-panel .hr-mode-badge {
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #f59e0b;
+  color: #1f2937;
+  font-size: 11px;
+}
+#hinban-referee-panel.hr-mode-discontinued .hr-header {
+  background: rgba(120, 53, 15, 0.85);
+}
