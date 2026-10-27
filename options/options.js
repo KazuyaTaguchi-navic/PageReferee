@@ -729,6 +729,18 @@
       : "登録ボタンのロックを無効にしました。";
   });
 
+  // ---------- ⑪ 廃盤処理モード ----------
+
+  const discontinuedModeCheckbox = document.getElementById("discontinued-mode-enabled");
+  const discontinuedModeStatus = document.getElementById("discontinued-mode-status");
+
+  discontinuedModeCheckbox.addEventListener("change", async () => {
+    await storage.setPatch({ discontinuedModeEnabled: discontinuedModeCheckbox.checked });
+    discontinuedModeStatus.textContent = discontinuedModeCheckbox.checked
+      ? "廃盤処理モードを有効にしました。確認パネルに「ページ作成／廃盤処理」の切り替えが表示されます。"
+      : "廃盤処理モードを無効にしました。確認パネルは従来どおりページ作成の確認だけになります。";
+  });
+
   // ---------- ⑩ エクスポート・インポート ----------
 
   exportBtn.addEventListener("click", async () => {
@@ -761,7 +773,7 @@
   // 作業者もこの設定画面自体は開けてしまうため、項目マッピング・重大度設定・チャットボット・
   // 実績記録など、管理者だけが触るべき項目はパスコードを入力するまで表示しない。
   // パスコードは平文のまま保存せず、SHA-256のハッシュ値だけをchrome.storage.localに保存する。
-  const ADMIN_LOCKED_SECTION_IDS = ["settings-6", "settings-7", "settings-8", "settings-9", "settings-10"];
+  const ADMIN_LOCKED_SECTION_IDS = ["settings-6", "settings-7", "settings-8", "settings-9", "settings-10", "settings-11"];
   const adminLockBar = document.getElementById("admin-lock-bar");
   const adminLockStatus = document.getElementById("admin-lock-status");
   const adminLockPasscodeInput = document.getElementById("admin-lock-passcode");
@@ -869,6 +881,7 @@
       logWebhookStatus.textContent = "実績記録は有効です。";
     }
     registerLockCheckbox.checked = !!state.registerLockEnabled;
+    discontinuedModeCheckbox.checked = !!state.discontinuedModeEnabled;
   }
 
   init();

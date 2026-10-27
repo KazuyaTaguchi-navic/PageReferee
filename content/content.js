@@ -89,6 +89,7 @@
     .getAll()
     .then((s) => {
       registerGuard.enabled = !!s.registerLockEnabled;
+      applyModeAvailability(!!s.discontinuedModeEnabled);
     })
     .catch(() => {});
 
@@ -323,7 +324,7 @@
     <div class="hr-body">
       <div class="hr-datastatus" id="hr-datastatus">データ未読み込み</div>
       <div class="hr-picker-banner" id="hr-picker-banner" style="display:none;"></div>
-      <div class="hr-mode" id="hr-mode" role="radiogroup" aria-label="モード">
+      <div class="hr-mode" id="hr-mode" role="radiogroup" aria-label="モード" style="display:none;">
         <label class="hr-mode-opt"><input type="radio" name="hr-mode" value="create" checked> ページ作成</label>
         <label class="hr-mode-opt"><input type="radio" name="hr-mode" value="discontinued"> 廃盤処理</label>
       </div>
@@ -1124,6 +1125,7 @@
       currentFieldMap = Object.assign({}, storage.DEFAULT_FIELD_MAP, state.domFieldMap || {});
       renderDataStatus(state);
       registerGuard.enabled = !!state.registerLockEnabled;
+      applyModeAvailability(!!state.discontinuedModeEnabled);
 
       if (currentMode === "discontinued") {
         // 廃盤処理では登録ボタンのロックと実績ログは使わない
@@ -1337,6 +1339,26 @@
   });
 
   // ---------- モード切り替え（ページ作成／廃盤処理） ----------
+  // 設定⑪（廃盤処理モード）がOFFのときは切り替えを出さず、ページ作成のままにする。
+  // 廃盤処理に切り替えている最中にOFFにされた場合も、ページ作成に戻す。
+  function applyModeAvailability(enabled) {
+    panel.querySelector("#hr-mode").style.display = enabled ? "" : "none";
+    if (!enabled && currentMode !== "create") {
+      panel.querySelector('input[name="hr-mode"][value="create"]').checked = true;
+      setMode("create");
+    }
+  }
+  // 設定画面で切り替えたら、開いているパネルにもすぐ反映する
+  if (chrome.storage && chrome.storage.onChanged) {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== "local" || !changes.hinbanReferee || !isExtensionContextValid()) return;
+      storage
+        .getAll()
+        .then((s) => applyModeAvailability(!!s.discontinuedModeEnabled))
+        .catch(() => {});
+    });
+  }
+
   function setMode(mode) {
     currentMode = mode;
     const isDiscontinued = mode === "discontinued";

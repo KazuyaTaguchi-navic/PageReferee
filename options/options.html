@@ -153,6 +153,20 @@
     <div id="log-webhook-status" class="status"></div>
   </details>
 
+  <details class="settings-section" id="settings-11" hidden>
+    <summary><h2>⑪ 廃盤処理モード</h2></summary>
+    <p class="hint">
+      ONにすると、確認パネルの上部に「ページ作成／廃盤処理」の切り替えが表示されます。OFF（初期値）のときは切り替えが表示されず、従来どおりページ作成の確認だけになります。<br />
+      「廃盤処理」は、管理表を使わず、廃盤処理で決まっている値（メーカー品番の「-out」・商品種別・サイト掲載フラグ・楽天とヤフーの在庫切れ時の設定など）になっているかを確認します。<br />
+      人によって使う・使わないが異なるため、設定のエクスポート/インポートには含まれません（各自の環境で個別に設定してください）。
+    </p>
+    <label style="display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="discontinued-mode-enabled" />
+      廃盤処理モードを有効にする（確認パネルに切り替えを表示）
+    </label>
+    <div id="discontinued-mode-status" class="status"></div>
+  </details>
+
   <script src="../lib/xlsx.full.min.js"></script>
   <script src="../lib/storage.js"></script>
   <script src="../lib/workbook.js"></script>
