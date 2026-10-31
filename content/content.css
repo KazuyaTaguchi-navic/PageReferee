@@ -527,18 +527,21 @@ body.hr-picker-active * {
 }
 
 /* 検索ボックスの✕（入力を消す）ボタン。入力欄の右隣に置き（重ねない）、白い丸＋濃い✕で暗い背景でも見えるようにする。
-   ページ側のCSSに左右されないよう、大きさ・余白・文字色は明示的に指定する */
-#hinban-referee-panel .hr-tag-search-box {
+   ページ側のCSSに左右されないよう、大きさ・余白・文字色は明示的に指定する。
+   クラス名を新しくしているのは、拡張機能の更新前に開いたページに古いCSS（✕を入力欄に重ねていた指定）が
+   残っていても、そのルールが当たらないようにするため */
+#hinban-referee-panel .hr-tag-input-row {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-#hinban-referee-panel .hr-tag-search-box .hr-tag-search-input {
+#hinban-referee-panel .hr-tag-input-row .hr-tag-search-input {
   flex: 1 1 0;
   width: auto;
   min-width: 0;
 }
-#hinban-referee-panel .hr-tag-search-clear {
+#hinban-referee-panel .hr-tag-clear-btn {
+  position: static;
   flex: 0 0 auto;
   width: 26px;
   height: 26px;
@@ -556,6 +559,6 @@ body.hr-picker-active * {
   text-align: center;
   cursor: pointer;
 }
-#hinban-referee-panel .hr-tag-search-clear:hover {
+#hinban-referee-panel .hr-tag-clear-btn:hover {
   background: #ffffff;
 }

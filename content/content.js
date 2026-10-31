@@ -350,9 +350,9 @@
       <div class="hr-tag-search" id="hr-tag-search">
         <div class="hr-tag-status" id="hr-tag-status" style="display:none;"></div>
         <div class="hr-suggestions-title">🔍 車種別タグを検索</div>
-        <div class="hr-tag-search-box">
+        <div class="hr-tag-input-row">
           <input type="text" id="hr-tag-search-input" class="hr-tag-search-input" placeholder="車種名で検索（例: アルファード）" autocomplete="off" />
-          <button type="button" id="hr-tag-search-clear" class="hr-tag-search-clear" title="入力を消す" aria-label="入力を消す" style="display:none;">✕</button>
+          <button type="button" id="hr-tag-search-clear" class="hr-tag-clear-btn" title="入力を消す" aria-label="入力を消す" style="display:none;">✕</button>
         </div>
         <div class="hr-tag-search-info">
           <div class="hr-tag-search-count" id="hr-tag-search-count" style="display:none;"></div>
