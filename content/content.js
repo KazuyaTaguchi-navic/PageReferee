@@ -347,6 +347,12 @@
         </button>
       </div>
       <ul class="hr-findings" id="hr-findings"></ul>
+      <div class="hr-tag-search" id="hr-tag-search">
+        <div class="hr-suggestions-title">🔍 車種別タグを検索</div>
+        <input type="search" id="hr-tag-search-input" class="hr-tag-search-input" placeholder="車種名・カテゴリで検索（例: アルファード 外装）" autocomplete="off" />
+        <div class="hr-tag-search-count" id="hr-tag-search-count" style="display:none;"></div>
+        <ul class="hr-suggestion-list hr-tag-search-results" id="hr-tag-search-results"></ul>
+      </div>
       <div class="hr-suggestions" id="hr-suggestions" style="display:none;">
         <div class="hr-tag-status" id="hr-tag-status" style="display:none;"></div>
         <div class="hr-suggestions-title">🔎 車種別タグ候補（要確認・キーワード一致による推定です）</div>
@@ -677,6 +683,77 @@
       list.appendChild(li);
     });
   }
+
+  // ---------- 車種別タグの検索 ----------
+  // 画面内の情報から推測する「車種別タグ候補」とは別に、検索ボックスに入れた言葉に合うタグを
+  // 車種別タグ表からすべて表示する。一覧は3件分の高さで、はみ出した分はスクロールして見る。
+  const TAG_SEARCH_MAX_RESULTS = 300;
+  let tagSearchIndexPromise = null;
+
+  function loadTagSearchIndex() {
+    if (!tagSearchIndexPromise) {
+      tagSearchIndexPromise = storage
+        .getAll()
+        .then((state) => rules.buildTagSearchIndex(state.tagWorkbook, state.tagDictionaryConfig));
+    }
+    return tagSearchIndexPromise;
+  }
+
+  async function renderTagSearch() {
+    const input = panel.querySelector("#hr-tag-search-input");
+    const countEl = panel.querySelector("#hr-tag-search-count");
+    const list = panel.querySelector("#hr-tag-search-results");
+    const query = input.value.trim();
+    list.innerHTML = "";
+    if (!query) {
+      countEl.style.display = "none";
+      return;
+    }
+    countEl.style.display = "block";
+    countEl.textContent = "検索中…";
+    const index = await loadTagSearchIndex();
+    if (input.value.trim() !== query) return; // 入力が進んでいたら、古い結果は捨てる
+    if (!index.length) {
+      countEl.textContent = "車種別タグ表が読み込まれていないため検索できません（設定画面の「② 車種別タグ表ファイル」で読み込んでください）";
+      return;
+    }
+    const hits = rules.searchTagIndex(index, query);
+    if (!hits.length) {
+      countEl.textContent = "該当するタグはありません";
+      return;
+    }
+    const shown = hits.slice(0, TAG_SEARCH_MAX_RESULTS);
+    countEl.textContent =
+      hits.length > shown.length
+        ? `${hits.length}件ヒット（先頭${shown.length}件を表示。言葉を足して絞り込んでください）`
+        : `${hits.length}件ヒット`;
+    shown.forEach((hit) => {
+      const carLabel = hit.car && hit.formal && hit.car !== hit.formal ? `${hit.car}（${hit.formal}）` : hit.car || hit.formal;
+      const baseLabel = `${hit.tag}${hit.category ? `（${hit.category}）` : ""}${carLabel ? ` ― ${carLabel}` : ""}`;
+      const li = document.createElement("li");
+      li.className = "hr-suggestion";
+      li.textContent = baseLabel;
+      li.title = "クリックでタグをコピー";
+      li.addEventListener("click", () => {
+        copyTextToClipboard(hit.tag);
+        li.textContent = `${hit.tag} をコピーしました`;
+        li.classList.add("hr-suggestion-copied");
+        setTimeout(() => {
+          li.textContent = baseLabel;
+          li.classList.remove("hr-suggestion-copied");
+        }, 1200);
+      });
+      list.appendChild(li);
+    });
+  }
+
+  let tagSearchTimer = null;
+  panel.querySelector("#hr-tag-search-input").addEventListener("input", () => {
+    clearTimeout(tagSearchTimer);
+    tagSearchTimer = setTimeout(() => {
+      renderTagSearch().catch((err) => console.error("[ページレフェリー] 車種別タグの検索に失敗しました", err));
+    }, 150);
+  });
 
   // ---------- チャットボット ----------
 
@@ -1352,6 +1429,8 @@
   if (chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== "local" || !changes.hinbanReferee || !isExtensionContextValid()) return;
+      tagSearchIndexPromise = null;
+      renderTagSearch().catch(() => {});
       storage
         .getAll()
         .then((s) => applyModeAvailability(!!s.discontinuedModeEnabled))
@@ -1364,6 +1443,7 @@
     const isDiscontinued = mode === "discontinued";
     panel.classList.toggle("hr-mode-discontinued", isDiscontinued);
     panel.querySelector("#hr-mode-badge").style.display = isDiscontinued ? "inline-block" : "none";
+    panel.querySelector("#hr-tag-search").style.display = isDiscontinued ? "none" : "";
     // 前のモードの結果が残ったままだと取り違えるので消す
     panel.querySelector("#hr-summary").style.display = "none";
     panel.querySelector("#hr-findings").innerHTML = "";

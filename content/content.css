@@ -438,3 +438,32 @@ body.hr-picker-active * {
 #hinban-referee-panel.hr-mode-discontinued .hr-header {
   background: rgba(120, 53, 15, 0.85);
 }
+
+/* 車種別タグの検索 */
+#hinban-referee-panel .hr-tag-search {
+  margin-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 8px;
+}
+#hinban-referee-panel .hr-tag-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 12px;
+}
+#hinban-referee-panel .hr-tag-search-count {
+  font-size: 11px;
+  color: #cbd5e1;
+  margin: 4px 0;
+}
+/* 3件分の高さで、はみ出した分はスクロールして見る */
+#hinban-referee-panel .hr-tag-search-results {
+  max-height: 160px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
