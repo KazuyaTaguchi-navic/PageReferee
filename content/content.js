@@ -348,15 +348,11 @@
       </div>
       <ul class="hr-findings" id="hr-findings"></ul>
       <div class="hr-tag-search" id="hr-tag-search">
+        <div class="hr-tag-status" id="hr-tag-status" style="display:none;"></div>
         <div class="hr-suggestions-title">🔍 車種別タグを検索</div>
         <input type="search" id="hr-tag-search-input" class="hr-tag-search-input" placeholder="車種名で検索（例: アルファード）" autocomplete="off" />
         <div class="hr-tag-search-count" id="hr-tag-search-count" style="display:none;"></div>
         <ul class="hr-suggestion-list hr-tag-search-results" id="hr-tag-search-results"></ul>
-      </div>
-      <div class="hr-suggestions" id="hr-suggestions" style="display:none;">
-        <div class="hr-tag-status" id="hr-tag-status" style="display:none;"></div>
-        <div class="hr-suggestions-title">🔎 車種別タグ候補（要確認・キーワード一致による推定です）</div>
-        <ul class="hr-suggestion-list" id="hr-suggestion-list"></ul>
       </div>
       <div class="hr-chat" id="hr-chat">
         <div class="hr-suggestions-title hr-chat-header" id="hr-chat-header">
@@ -638,55 +634,22 @@
     return { text: `車種別タグが設置されていません。（${missingMalls.join("・")}）`, ok: false };
   }
 
-  function renderTagCandidates(candidates, vehicleTagStatus) {
-    const container = panel.querySelector("#hr-suggestions");
-    const title = panel.querySelector("#hr-suggestions .hr-suggestions-title");
-    const list = panel.querySelector("#hr-suggestion-list");
+  // 車種別タグが設置されているか（楽天・ヤフー）の案内。検索ボックスの上に表示する。
+  function renderVehicleTagStatus(vehicleTagStatus) {
     const statusEl = panel.querySelector("#hr-tag-status");
-    list.innerHTML = "";
-
-    const hasCandidates = candidates && candidates.length > 0;
-    const hasStatus = !!vehicleTagStatus;
-
-    if (!hasCandidates && !hasStatus) {
-      container.style.display = "none";
+    if (!vehicleTagStatus) {
+      statusEl.style.display = "none";
       return;
     }
-
-    container.style.display = "block";
-    if (hasStatus) {
-      const { text, ok } = buildVehicleTagStatusMessage(vehicleTagStatus);
-      statusEl.style.display = "block";
-      statusEl.textContent = text;
-      statusEl.className = "hr-tag-status " + (ok ? "hr-tag-status-ok" : "hr-tag-status-missing");
-    } else {
-      statusEl.style.display = "none";
-    }
-    title.style.display = hasCandidates ? "block" : "none";
-    list.style.display = hasCandidates ? "block" : "none";
-    candidates.forEach((c) => {
-      const li = document.createElement("li");
-      li.className = "hr-suggestion";
-      const categoryLabel = c.category ? `（${c.category}）` : "";
-      const baseLabel = `${c.tag}${categoryLabel} ― 「${c.matchedKeyword}」に一致`;
-      li.textContent = baseLabel;
-      li.title = "クリックでタグをコピー";
-      li.addEventListener("click", () => {
-        copyTextToClipboard(c.tag);
-        li.textContent = `${c.tag} をコピーしました`;
-        li.classList.add("hr-suggestion-copied");
-        setTimeout(() => {
-          li.textContent = baseLabel;
-          li.classList.remove("hr-suggestion-copied");
-        }, 1200);
-      });
-      list.appendChild(li);
-    });
+    const { text, ok } = buildVehicleTagStatusMessage(vehicleTagStatus);
+    statusEl.style.display = "block";
+    statusEl.textContent = text;
+    statusEl.className = "hr-tag-status " + (ok ? "hr-tag-status-ok" : "hr-tag-status-missing");
   }
 
   // ---------- 車種別タグの検索 ----------
-  // 画面内の情報から推測する「車種別タグ候補」とは別に、検索ボックスに入れた言葉に合うタグを
-  // 車種別タグ表からすべて表示する。一覧は3件分の高さで、はみ出した分はスクロールして見る。
+  // 検索ボックスに入れた車種名に合うタグを、車種別タグ表からすべて表示する。
+  // 一覧は3件分の高さで、はみ出した分はスクロールして見る。
   let tagSearchIndexPromise = null;
 
   function loadTagSearchIndex() {
@@ -726,18 +689,35 @@
       const carLabel = hit.car && hit.formal && hit.car !== hit.formal ? `${hit.car}（${hit.formal}）` : hit.car || hit.formal;
       const baseLabel = `${hit.tag}${hit.category ? `（${hit.category}）` : ""}${carLabel ? ` ― ${carLabel}` : ""}`;
       const li = document.createElement("li");
-      li.className = "hr-suggestion";
-      li.textContent = baseLabel;
+      li.className = "hr-suggestion hr-suggestion-row";
       li.title = "クリックでタグをコピー";
-      li.addEventListener("click", () => {
+      const textSpan = document.createElement("span");
+      textSpan.className = "hr-suggestion-text";
+      textSpan.textContent = baseLabel;
+      li.appendChild(textSpan);
+      // 他のコピーできる項目（指摘の📋）と同じボタン。行そのものをクリックしてもコピーできる
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "hr-finding-copy";
+      copyBtn.title = "タグをコピー";
+      copyBtn.textContent = "📋";
+      let resetTimer = null;
+      const copyTag = () => {
         copyTextToClipboard(hit.tag);
-        li.textContent = `${hit.tag} をコピーしました`;
+        copyBtn.textContent = "✅";
         li.classList.add("hr-suggestion-copied");
-        setTimeout(() => {
-          li.textContent = baseLabel;
+        clearTimeout(resetTimer);
+        resetTimer = setTimeout(() => {
+          copyBtn.textContent = "📋";
           li.classList.remove("hr-suggestion-copied");
         }, 1200);
+      };
+      li.addEventListener("click", copyTag);
+      copyBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        copyTag();
       });
+      li.appendChild(copyBtn);
       list.appendChild(li);
     });
   }
@@ -1162,7 +1142,7 @@
     const findings = discontinued.runChecks(collectDomValues(currentFieldMap));
     if (!isLatestRun()) return;
     renderFindings(findings, currentFieldMap, { emptyMessage: "廃盤処理の設定はすべて正しくなっています 🎉" });
-    renderTagCandidates([], null);
+    renderVehicleTagStatus(null);
     setProgress(100, "完了");
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
@@ -1280,19 +1260,11 @@
       await nextFrame();
 
       // 車種別タグは#item_tag欄ではなく各説明文・フリースペースの本文に手打ちで挿入する
-      // 運用のため、本文から実際のタグを抽出しておく（tag_missing/tag_extra・推奨候補との
-      // 突き合わせ・候補提案での除外の両方に使う）
+      // 運用のため、本文から実際のタグを抽出しておく（tag_missing/tag_extraの判定に使う）
       const actualVehicleTags = rules.findActualVehicleTags(domValues);
       const candidateText = storage.TAG_CANDIDATE_TEXT_KEYS.map((k) => domValues[k] || "").join("\n");
-      // 表示用（車種別タグ候補パネル）は上位3件に絞るが、既存タグが「妥当か」の判定には
-      // 上位3件だけでなく一致する全候補を使う必要がある（表示用に絞ると、同じ車種名で
-      // 系違いのタグ等に競り負けて本来正しいタグまで「候補にない」と誤検知するため）。
-      const tagCandidates = rules.getTagCandidates(
-        candidateText,
-        state.tagWorkbook,
-        state.tagDictionaryConfig,
-        actualVehicleTags
-      );
+      // 既存タグが「妥当か」の判定には、本文に出てくる車種名に一致する全候補を使う（上位だけに絞ると、
+      // 同じ車種名で系違いのタグ等に競り負けて、本来正しいタグまで「候補にない」と誤検知するため）。
       const allTagCandidates = rules.findAllTagCandidates(candidateText, state.tagWorkbook, state.tagDictionaryConfig, []);
 
       const findings = rules.runChecks({
@@ -1348,7 +1320,7 @@
       renderFindings(findings, currentFieldMap);
 
       const vehicleTagStatus = rules.getVehicleTagStatus(domValues);
-      renderTagCandidates(tagCandidates, vehicleTagStatus);
+      renderVehicleTagStatus(vehicleTagStatus);
 
       setProgress(100, "完了");
       await new Promise((resolve) => setTimeout(resolve, 300));
@@ -1442,7 +1414,7 @@
     // 前のモードの結果が残ったままだと取り違えるので消す
     panel.querySelector("#hr-summary").style.display = "none";
     panel.querySelector("#hr-findings").innerHTML = "";
-    renderTagCandidates([], null);
+    renderVehicleTagStatus(null);
     if (isDiscontinued) {
       panel.querySelector("#hr-datastatus").textContent = DISCONTINUED_STATUS_TEXT;
     } else {

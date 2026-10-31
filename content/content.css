@@ -467,3 +467,11 @@ body.hr-picker-active * {
   overflow-y: auto;
   margin-top: 4px;
 }
+#hinban-referee-panel .hr-suggestion-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#hinban-referee-panel .hr-suggestion-text {
+  flex: 1;
+}
