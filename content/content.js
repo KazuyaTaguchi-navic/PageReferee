@@ -350,8 +350,14 @@
       <div class="hr-tag-search" id="hr-tag-search">
         <div class="hr-tag-status" id="hr-tag-status" style="display:none;"></div>
         <div class="hr-suggestions-title">🔍 車種別タグを検索</div>
-        <input type="search" id="hr-tag-search-input" class="hr-tag-search-input" placeholder="車種名で検索（例: アルファード）" autocomplete="off" />
-        <div class="hr-tag-search-count" id="hr-tag-search-count" style="display:none;"></div>
+        <div class="hr-tag-search-box">
+          <input type="text" id="hr-tag-search-input" class="hr-tag-search-input" placeholder="車種名で検索（例: アルファード）" autocomplete="off" />
+          <button type="button" id="hr-tag-search-clear" class="hr-tag-search-clear" title="入力を消す" aria-label="入力を消す" style="display:none;">✕</button>
+        </div>
+        <div class="hr-tag-search-info">
+          <div class="hr-tag-search-count" id="hr-tag-search-count" style="display:none;"></div>
+          <div class="hr-tag-groups" id="hr-tag-search-groups"></div>
+        </div>
         <ul class="hr-suggestion-list hr-tag-search-results" id="hr-tag-search-results"></ul>
       </div>
       <div class="hr-chat" id="hr-chat">
@@ -665,8 +671,10 @@
     const input = panel.querySelector("#hr-tag-search-input");
     const countEl = panel.querySelector("#hr-tag-search-count");
     const list = panel.querySelector("#hr-tag-search-results");
+    const groupsEl = panel.querySelector("#hr-tag-search-groups");
     const query = input.value.trim();
     list.innerHTML = "";
+    groupsEl.innerHTML = "";
     if (!query) {
       countEl.style.display = "none";
       return;
@@ -685,6 +693,7 @@
       return;
     }
     countEl.textContent = `${hits.length}件ヒット`;
+    const groupFirstRow = new Map(); // 車種（型式）名 -> そのグループの最初の行
     hits.forEach((hit) => {
       const carLabel = hit.car && hit.formal && hit.car !== hit.formal ? `${hit.car}（${hit.formal}）` : hit.car || hit.formal;
       const li = document.createElement("li");
@@ -737,12 +746,43 @@
         copyTag();
       });
       li.appendChild(copyBtn);
+      // 同じ車種でも型式によってタググループが違うため、車種（型式）ごとのまとまりの先頭を覚えておく
+      const groupName = hit.car || hit.formal;
+      if (groupName && !groupFirstRow.has(groupName)) {
+        groupFirstRow.set(groupName, li);
+        if (groupFirstRow.size > 1) li.classList.add("hr-suggestion-group-start");
+      }
       list.appendChild(li);
     });
+    // 件数の右に車種（型式）ごとのボタンを出す。押すと、そのグループの先頭が一覧の一番上に来る
+    if (groupFirstRow.size >= 2) {
+      groupFirstRow.forEach((firstLi, name) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "hr-tag-group-btn";
+        btn.textContent = name;
+        btn.title = `${name} のタグの先頭へ移動`;
+        btn.addEventListener("click", () => {
+          list.scrollTop += firstLi.getBoundingClientRect().top - list.getBoundingClientRect().top;
+        });
+        groupsEl.appendChild(btn);
+      });
+    }
   }
 
   let tagSearchTimer = null;
-  panel.querySelector("#hr-tag-search-input").addEventListener("input", () => {
+  const tagSearchInput = panel.querySelector("#hr-tag-search-input");
+  const tagSearchClear = panel.querySelector("#hr-tag-search-clear");
+  // ✕ボタンは文字が入っているときだけ出す（ブラウザ標準の×は小さくて見づらいため自前にしている）
+  tagSearchClear.addEventListener("click", () => {
+    tagSearchInput.value = "";
+    tagSearchClear.style.display = "none";
+    clearTimeout(tagSearchTimer);
+    renderTagSearch().catch((err) => console.error("[ページレフェリー] 車種別タグの検索に失敗しました", err));
+    tagSearchInput.focus();
+  });
+  tagSearchInput.addEventListener("input", () => {
+    tagSearchClear.style.display = tagSearchInput.value ? "block" : "none";
     clearTimeout(tagSearchTimer);
     tagSearchTimer = setTimeout(() => {
       renderTagSearch().catch((err) => console.error("[ページレフェリー] 車種別タグの検索に失敗しました", err));
