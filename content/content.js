@@ -351,12 +351,12 @@
         <div class="hr-tag-status" id="hr-tag-status" style="display:none;"></div>
         <div class="hr-suggestions-title">🔍 車種別タグを検索</div>
         <div class="hr-tag-input-row">
-          <input type="text" id="hr-tag-search-input" class="hr-tag-search-input" placeholder="車種名で検索（例: アルファード）" autocomplete="off" />
+          <input type="text" id="hr-tag-search-input" class="hr-tag-search-input" placeholder="車種名で検索（例：アルファード）" autocomplete="off" />
           <button type="button" id="hr-tag-search-clear" class="hr-tag-clear-btn" title="入力を消す" aria-label="入力を消す" style="display:none;">✕</button>
         </div>
         <div class="hr-tag-search-info">
           <div class="hr-tag-search-count" id="hr-tag-search-count" style="display:none;"></div>
-          <div class="hr-tag-groups" id="hr-tag-search-groups"></div>
+          <div class="hr-tag-group-list" id="hr-tag-search-groups"></div>
         </div>
         <ul class="hr-suggestion-list hr-tag-search-results" id="hr-tag-search-results"></ul>
       </div>
@@ -373,7 +373,7 @@
         <div class="hr-chat-body" id="hr-chat-body">
           <ul class="hr-chat-log" id="hr-chat-log"></ul>
           <div class="hr-chat-input-row">
-            <textarea id="hr-chat-input" rows="2" placeholder="例: 国産車の車種名にメーカー名は必要ですか？"></textarea>
+            <textarea id="hr-chat-input" rows="2" placeholder="不明な点を質問（例：商品名にメーカー名は必要ですか？）"></textarea>
             <button type="button" id="hr-chat-send" class="hr-btn-secondary">送信</button>
           </div>
         </div>
@@ -695,7 +695,7 @@
     countEl.textContent = `${hits.length}件ヒット`;
     const groupFirstRow = new Map(); // 車種（型式）名 -> そのグループの最初の行
     hits.forEach((hit) => {
-      const carLabel = hit.car && hit.formal && hit.car !== hit.formal ? `${hit.car}（${hit.formal}）` : hit.car || hit.formal;
+      const carLabel = hit.car || hit.formal; // 表示は車種（C列）だけ。正式名称（E列）は検索にだけ使う
       const li = document.createElement("li");
       li.className = "hr-suggestion hr-suggestion-row";
       li.title = "クリックでタグをコピー";

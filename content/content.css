@@ -468,12 +468,13 @@ body.hr-picker-active * {
   color: #cbd5e1;
 }
 /* 車種（型式）ごとのタググループへ移動するボタン */
-#hinban-referee-panel .hr-tag-groups {
+/* 型式のボタンは数が多くても、スクロールにせず全部並べる。
+   クラス名を新しくしているのは、更新前に開いたページに古いCSS（高さを60pxで切ってスクロールにする指定）が
+   残っていても、そのルールが当たらないようにするため */
+#hinban-referee-panel .hr-tag-group-list {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  max-height: 60px;
-  overflow-y: auto;
 }
 #hinban-referee-panel .hr-tag-group-btn {
   background: rgba(103, 232, 249, 0.12);
@@ -569,4 +570,12 @@ body.hr-picker-active * {
 }
 #hinban-referee-panel.hr-tag-searching .hr-tag-search-results {
   max-height: max(160px, calc(92vh - 500px));
+}
+
+/* 入力欄の例文（プレースホルダー）。ブラウザ標準の灰色は暗い背景で見えにくいため、明るい色にする。
+   入力した文字（明るい白）とは区別できる程度に少し落とした色にしている */
+#hinban-referee-panel .hr-tag-search-input::placeholder,
+#hinban-referee-panel .hr-chat-input-row textarea::placeholder {
+  color: #b4c0d3;
+  opacity: 1;
 }
