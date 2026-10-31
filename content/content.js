@@ -694,6 +694,8 @@
     }
     countEl.textContent = `${hits.length}件ヒット`;
     const groupFirstRow = new Map(); // 車種（型式）名 -> そのグループの最初の行
+    const groupHeads = []; // 車種（型式）が前の行から変わる行（ここから別のグループ、という見出しを付ける行）
+    let prevGroupName = null;
     hits.forEach((hit) => {
       const carLabel = hit.car || hit.formal; // 表示は車種（C列）だけ。正式名称（E列）は検索にだけ使う
       const li = document.createElement("li");
@@ -748,12 +750,17 @@
       li.appendChild(copyBtn);
       // 同じ車種でも型式によってタググループが違うため、車種（型式）ごとのまとまりの先頭を覚えておく
       const groupName = hit.car || hit.formal;
-      if (groupName && !groupFirstRow.has(groupName)) {
-        groupFirstRow.set(groupName, li);
-        if (groupFirstRow.size > 1) li.classList.add("hr-suggestion-group-start");
+      if (groupName && !groupFirstRow.has(groupName)) groupFirstRow.set(groupName, li);
+      if (groupName && groupName !== prevGroupName) {
+        li.dataset.group = groupName;
+        groupHeads.push(li);
       }
+      prevGroupName = groupName;
       list.appendChild(li);
     });
+    // 2つ以上のグループがあるときは、グループの先頭の行の上に「ここから○○」と書いた見出しの帯を付ける
+    // （帯の見た目はCSSの.hr-tag-group-head。文字はdata-groupから出す）
+    if (groupFirstRow.size >= 2) groupHeads.forEach((li) => li.classList.add("hr-tag-group-head"));
     // 件数の右に車種（型式）ごとのボタンを出す。押すと、そのグループの先頭が一覧の一番上に来る
     if (groupFirstRow.size >= 2) {
       groupFirstRow.forEach((firstLi, name) => {
@@ -763,7 +770,9 @@
         btn.textContent = name;
         btn.title = `${name} のタグの先頭へ移動`;
         btn.addEventListener("click", () => {
-          list.scrollTop += firstLi.getBoundingClientRect().top - list.getBoundingClientRect().top;
+          // 見出しの帯（行の上の余白に出している）が隠れないよう、その分だけ手前までスクロールする
+          const headRoom = parseFloat(getComputedStyle(firstLi).marginTop) || 0;
+          list.scrollTop += firstLi.getBoundingClientRect().top - list.getBoundingClientRect().top - headRoom;
         });
         groupsEl.appendChild(btn);
       });

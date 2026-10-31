@@ -489,8 +489,32 @@ body.hr-picker-active * {
 #hinban-referee-panel .hr-tag-group-btn:hover {
   background: rgba(103, 232, 249, 0.25);
 }
-#hinban-referee-panel .hr-suggestion-group-start {
-  margin-top: 10px;
+/* 型式（車種）のまとまりの先頭の行の上に、「ここから○○」と書いた水色の太い帯を出す（どこから別のグループかが一目で分かるように）。
+   帯は行の上の余白に重ねて出し、文字はdata-groupから取る。帯を押してもタグがコピーされないようpointer-eventsを切る。
+   新しいクラス名にしているのは、更新前に開いたページに古いCSSが残っていても混ざらないようにするため */
+#hinban-referee-panel .hr-tag-group-head {
+  position: relative;
+  margin-top: 32px;
+}
+#hinban-referee-panel .hr-tag-group-head::before {
+  content: "▼ ここから " attr(data-group);
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -28px;
+  height: 24px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border-radius: 6px;
+  background: #67e8f9;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
 }
 /* 3件分の高さで、はみ出した分はスクロールして見る */
 #hinban-referee-panel .hr-tag-search-results {
