@@ -474,4 +474,23 @@ body.hr-picker-active * {
 }
 #hinban-referee-panel .hr-suggestion-text {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* カテゴリは太字・色付きで目立たせる（どのカテゴリのタグを選ぶかを一目で分かるように） */
+#hinban-referee-panel .hr-tag-cat {
+  font-weight: 700;
+  font-size: 14px;
+  color: #67e8f9;
+}
+#hinban-referee-panel .hr-tag-id {
+  font-size: 11px;
+  color: #c7d2fe;
+  margin-left: 6px;
+}
+#hinban-referee-panel .hr-tag-car {
+  font-size: 12px;
+  opacity: 0.9;
 }

@@ -687,13 +687,32 @@
     countEl.textContent = `${hits.length}件ヒット`;
     hits.forEach((hit) => {
       const carLabel = hit.car && hit.formal && hit.car !== hit.formal ? `${hit.car}（${hit.formal}）` : hit.car || hit.formal;
-      const baseLabel = `${hit.tag}${hit.category ? `（${hit.category}）` : ""}${carLabel ? ` ― ${carLabel}` : ""}`;
       const li = document.createElement("li");
       li.className = "hr-suggestion hr-suggestion-row";
       li.title = "クリックでタグをコピー";
       const textSpan = document.createElement("span");
       textSpan.className = "hr-suggestion-text";
-      textSpan.textContent = baseLabel;
+      // どのカテゴリのタグを選ぶかが一目で分かるよう、1行目にカテゴリを太字・色付きで出し、
+      // 2行目に車種名を出す（タグ番号は小さく添える）
+      const line1 = document.createElement("span");
+      line1.className = "hr-tag-line1";
+      if (hit.category) {
+        const catEl = document.createElement("span");
+        catEl.className = "hr-tag-cat";
+        catEl.textContent = hit.category;
+        line1.appendChild(catEl);
+      }
+      const idEl = document.createElement("span");
+      idEl.className = "hr-tag-id";
+      idEl.textContent = hit.tag;
+      line1.appendChild(idEl);
+      textSpan.appendChild(line1);
+      if (carLabel) {
+        const carEl = document.createElement("span");
+        carEl.className = "hr-tag-car";
+        carEl.textContent = carLabel;
+        textSpan.appendChild(carEl);
+      }
       li.appendChild(textSpan);
       // 他のコピーできる項目（指摘の📋）と同じボタン。行そのものをクリックしてもコピーできる
       const copyBtn = document.createElement("button");
