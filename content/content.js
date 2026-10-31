@@ -349,7 +349,7 @@
       <ul class="hr-findings" id="hr-findings"></ul>
       <div class="hr-tag-search" id="hr-tag-search">
         <div class="hr-suggestions-title">🔍 車種別タグを検索</div>
-        <input type="search" id="hr-tag-search-input" class="hr-tag-search-input" placeholder="車種名・カテゴリで検索（例: アルファード 外装）" autocomplete="off" />
+        <input type="search" id="hr-tag-search-input" class="hr-tag-search-input" placeholder="車種名で検索（例: アルファード）" autocomplete="off" />
         <div class="hr-tag-search-count" id="hr-tag-search-count" style="display:none;"></div>
         <ul class="hr-suggestion-list hr-tag-search-results" id="hr-tag-search-results"></ul>
       </div>
@@ -687,7 +687,6 @@
   // ---------- 車種別タグの検索 ----------
   // 画面内の情報から推測する「車種別タグ候補」とは別に、検索ボックスに入れた言葉に合うタグを
   // 車種別タグ表からすべて表示する。一覧は3件分の高さで、はみ出した分はスクロールして見る。
-  const TAG_SEARCH_MAX_RESULTS = 300;
   let tagSearchIndexPromise = null;
 
   function loadTagSearchIndex() {
@@ -722,12 +721,8 @@
       countEl.textContent = "該当するタグはありません";
       return;
     }
-    const shown = hits.slice(0, TAG_SEARCH_MAX_RESULTS);
-    countEl.textContent =
-      hits.length > shown.length
-        ? `${hits.length}件ヒット（先頭${shown.length}件を表示。言葉を足して絞り込んでください）`
-        : `${hits.length}件ヒット`;
-    shown.forEach((hit) => {
+    countEl.textContent = `${hits.length}件ヒット`;
+    hits.forEach((hit) => {
       const carLabel = hit.car && hit.formal && hit.car !== hit.formal ? `${hit.car}（${hit.formal}）` : hit.car || hit.formal;
       const baseLabel = `${hit.tag}${hit.category ? `（${hit.category}）` : ""}${carLabel ? ` ― ${carLabel}` : ""}`;
       const li = document.createElement("li");
