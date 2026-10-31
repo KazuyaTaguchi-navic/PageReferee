@@ -770,6 +770,13 @@
     }
   }
 
+  // 検索ボックスに文字が入っている間は、レッド/イエローカードの下の詳細を隠して検索結果の枠を大きく見せる
+  // （見た目の切り替えはCSSの.hr-tag-searching）。廃盤処理モードでは検索ボックスごと隠すので対象外。
+  function updateTagSearchingState() {
+    const searching = currentMode === "create" && !!panel.querySelector("#hr-tag-search-input").value.trim();
+    panel.classList.toggle("hr-tag-searching", searching);
+  }
+
   let tagSearchTimer = null;
   const tagSearchInput = panel.querySelector("#hr-tag-search-input");
   const tagSearchClear = panel.querySelector("#hr-tag-search-clear");
@@ -777,12 +784,14 @@
   tagSearchClear.addEventListener("click", () => {
     tagSearchInput.value = "";
     tagSearchClear.style.display = "none";
+    updateTagSearchingState();
     clearTimeout(tagSearchTimer);
     renderTagSearch().catch((err) => console.error("[ページレフェリー] 車種別タグの検索に失敗しました", err));
     tagSearchInput.focus();
   });
   tagSearchInput.addEventListener("input", () => {
     tagSearchClear.style.display = tagSearchInput.value ? "block" : "none";
+    updateTagSearchingState();
     clearTimeout(tagSearchTimer);
     tagSearchTimer = setTimeout(() => {
       renderTagSearch().catch((err) => console.error("[ページレフェリー] 車種別タグの検索に失敗しました", err));
@@ -1435,6 +1444,8 @@
   }
 
   panel.querySelector("#hr-btn-check").addEventListener("click", () => {
+    // 検索ボックスに文字が残っていても、確認した結果の詳細は見えるようにする（次に入力するまで）
+    panel.classList.remove("hr-tag-searching");
     runCheck().catch((err) => {
       console.error("[ページレフェリー] 確認処理でエラーが発生しました", err);
       alert("確認処理でエラーが発生しました。詳細はコンソールを確認してください。");
@@ -1470,6 +1481,7 @@
     panel.classList.toggle("hr-mode-discontinued", isDiscontinued);
     panel.querySelector("#hr-mode-badge").style.display = isDiscontinued ? "inline-block" : "none";
     panel.querySelector("#hr-tag-search").style.display = isDiscontinued ? "none" : "";
+    updateTagSearchingState();
     // 前のモードの結果が残ったままだと取り違えるので消す
     panel.querySelector("#hr-summary").style.display = "none";
     panel.querySelector("#hr-findings").innerHTML = "";

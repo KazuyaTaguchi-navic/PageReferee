@@ -562,3 +562,11 @@ body.hr-picker-active * {
 #hinban-referee-panel .hr-tag-clear-btn:hover {
   background: #ffffff;
 }
+
+/* 車種別タグを検索している間は、レッド/イエローカードの下の詳細を隠して、検索結果の枠を大きく表示する */
+#hinban-referee-panel.hr-tag-searching .hr-findings {
+  display: none !important;
+}
+#hinban-referee-panel.hr-tag-searching .hr-tag-search-results {
+  max-height: max(160px, calc(92vh - 500px));
+}
