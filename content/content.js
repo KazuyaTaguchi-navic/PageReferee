@@ -154,10 +154,29 @@
     }));
   }
 
+  // 欄の見出しの「？」（title属性）に出ている「使用可能HTML」の説明文を返す（HTMLの検査で、その欄で使えない
+  // タグを調べるのに使う）。見出しは入力欄と同じ行（tr）にある。無ければ空文字。
+  function extractHtmlHint(entry) {
+    if (!entry || !entry.selector) return "";
+    let el;
+    try {
+      el = document.querySelector(entry.selector);
+    } catch (e) {
+      return "";
+    }
+    const row = el && el.closest ? el.closest("tr") : null;
+    const hintImg = row ? row.querySelector('img[title*="使用可能HTML"]') : null;
+    return hintImg ? hintImg.getAttribute("title") || "" : "";
+  }
+
   function collectDomValues(fieldMap) {
     const values = {};
     Object.keys(fieldMap).forEach((key) => {
       values[key] = extractSingleValue(fieldMap[key]);
+    });
+    values.__htmlHints = {};
+    rules.HTML_CHECK_KEYS.forEach((key) => {
+      if (fieldMap[key]) values.__htmlHints[key] = extractHtmlHint(fieldMap[key]);
     });
     const skuRows = extractSkuRows();
     currentSkuElements = skuRows.map((r) => r.el);
