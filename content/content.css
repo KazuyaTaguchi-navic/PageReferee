@@ -324,6 +324,10 @@
 #hinban-referee-panel .hr-tag-status-ok {
   color: #4ade80;
 }
+/* 1タグ分（【SBT00065】（内装用品 - 210系 カローラ））の途中では折り返さない */
+#hinban-referee-panel .hr-tag-status-item {
+  display: inline-block;
+}
 
 #hinban-referee-panel .hr-chat {
   margin-top: 8px;

@@ -674,9 +674,15 @@
   }
 
   // vehicleTagStatus: { rakutenOk, yahooOk, tags } (rules.getVehicleTagStatus の戻り値)
-  function buildVehicleTagStatusMessage(status) {
+  // installedTags: [{ token, label }] (rules.describeInstalledTags の戻り値。省略時はタグ番号だけを並べる)。
+  // 設置されているタグごとに「【SBT00065】（内装用品 - 210系 カローラ）」の形で、どのカテゴリ・車種（型式）の
+  // タグかを添える（ページに入っているタグが本当に合っているかを確認できるように）。
+  // itemsは1タグ分ずつの文字列（表示側で、1タグの途中では折り返さないようにするために分けて返す）。
+  function buildVehicleTagStatusMessage(status, installedTags) {
     if (status.rakutenOk && status.yahooOk) {
-      return { text: `車種別タグ${status.tags.join("、")}が設置されています。`, ok: true };
+      const described = installedTags || status.tags.map((token) => ({ token, label: "" }));
+      const items = described.map(({ token, label }) => (label ? `${token}（${label}）` : token));
+      return { text: `車種別タグ${items.join("、")}が設置されています。`, ok: true, items };
     }
     const missingMalls = [];
     if (!status.rakutenOk) missingMalls.push("楽天");
@@ -685,16 +691,29 @@
   }
 
   // 車種別タグが設置されているか（楽天・ヤフー）の案内。検索ボックスの上に表示する。
-  function renderVehicleTagStatus(vehicleTagStatus) {
+  function renderVehicleTagStatus(vehicleTagStatus, installedTags) {
     const statusEl = panel.querySelector("#hr-tag-status");
     if (!vehicleTagStatus) {
       statusEl.style.display = "none";
       return;
     }
-    const { text, ok } = buildVehicleTagStatusMessage(vehicleTagStatus);
+    const { text, ok, items } = buildVehicleTagStatusMessage(vehicleTagStatus, installedTags);
     statusEl.style.display = "block";
-    statusEl.textContent = text;
     statusEl.className = "hr-tag-status " + (ok ? "hr-tag-status-ok" : "hr-tag-status-missing");
+    if (!items) {
+      statusEl.textContent = text;
+      return;
+    }
+    // 1タグ分（【SBT00065】（内装用品 - 210系 カローラ））の途中で折り返さず、タグの区切りで折り返す
+    statusEl.textContent = "";
+    statusEl.appendChild(document.createTextNode("車種別タグ"));
+    items.forEach((item, i) => {
+      const itemEl = document.createElement("span");
+      itemEl.className = "hr-tag-status-item";
+      itemEl.textContent = item + (i < items.length - 1 ? "、" : "");
+      statusEl.appendChild(itemEl);
+    });
+    statusEl.appendChild(document.createTextNode("が設置されています。"));
   }
 
   // ---------- 車種別タグの検索 ----------
@@ -1441,7 +1460,16 @@
       renderFindings(findings, currentFieldMap);
 
       const vehicleTagStatus = rules.getVehicleTagStatus(domValues);
-      renderVehicleTagStatus(vehicleTagStatus);
+      // 設置されているタグが車種別タグ表のどのカテゴリ・車種のものかを添えて表示する。
+      // 表の読み込みに失敗しても、タグ番号だけの表示にして確認自体は止めない。
+      let installedTags;
+      try {
+        installedTags = rules.describeInstalledTags(vehicleTagStatus.tags, await loadTagSearchIndex());
+      } catch (err) {
+        console.error("[ページレフェリー] 車種別タグ表の読み込みに失敗しました", err);
+      }
+      if (!isLatestRun()) return;
+      renderVehicleTagStatus(vehicleTagStatus, installedTags);
 
       setProgress(100, "完了");
       await new Promise((resolve) => setTimeout(resolve, 300));
