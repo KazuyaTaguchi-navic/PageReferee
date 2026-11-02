@@ -208,14 +208,39 @@
     highlightTimeouts = [];
   }
 
+  // 行（tr）に付いたクラス名と同じidの見出し（例: 楽天「商品画像名称10〜20 ※クリックで表示/非表示を
+  // 切り替えられます」の見出しth#rakuten_image_url_appendと、その下の行tr.rakuten_image_url_append）を探す。
+  // この見出しをクリックすると、同じクラスの行がまとめて表示/非表示になる。
+  function findRowGroupToggleHeader(node) {
+    const classes = node.classList ? Array.from(node.classList) : [];
+    for (const cls of classes) {
+      const header = document.getElementById(cls);
+      if (header && header !== node && !header.contains(node)) return header;
+    }
+    return null;
+  }
+
   // 通販する蔵は項目グループのタグ（見出し）をクリックすると入力エリアが折りたたまれる
   // ものがある。対象要素の祖先をたどり、非表示になっている（display:noneの）箇所があれば、
   // 同じtable内の見出し（thead th）をクリックして開く。見出しが見つからなければ直接表示に戻す。
+  // ただし、行が「同じクラス名のidを持つ見出し」で開閉する欄（商品画像名称10〜20）は、
+  // 表全体の見出し（thead th）ではなくその見出しを押す。表の見出しを押すと、開いている表全体が
+  // 閉じてしまい、入力欄まで辿り着けなかった。
   function ensureVisible(el) {
     let node = el.parentElement;
     while (node && node !== document.body) {
       const cs = window.getComputedStyle(node);
       if (cs.display === "none" || cs.visibility === "hidden") {
+        const rowGroupHeader = findRowGroupToggleHeader(node);
+        if (rowGroupHeader) {
+          rowGroupHeader.click();
+          // 見出しを押しても表示されなかった場合は、直接表示に戻す
+          if (window.getComputedStyle(node).display === "none") {
+            node.style.display = node.tagName === "TR" ? "table-row" : "block";
+          }
+          node = node.parentElement;
+          continue;
+        }
         const table = node.closest ? node.closest("table") : null;
         const header = table ? table.querySelector("thead th") : null;
         if (header) {
