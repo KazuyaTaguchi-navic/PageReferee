@@ -1420,6 +1420,8 @@
         fixedRuleChecks: storage.FIXED_RULE_CHECKS,
         freeTextKeys: storage.FREE_TEXT_KEYS,
         copySourceLogicalKeys: storage.COPY_SOURCE_CHECK_KEYS,
+        // 説明文に管理表の車種名が入っているかの検査用（車種別タグ表の車種名。表が未読み込みなら空）
+        vehicleNameTokens: rules.buildVehicleNameTokens(state.tagWorkbook, state.tagDictionaryConfig),
         urlTemplates: state.urlTemplates,
         rakutenSubpages,
         attributeRules: state.attributeRules,
