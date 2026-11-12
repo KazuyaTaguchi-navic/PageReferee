@@ -1422,6 +1422,10 @@
         copySourceLogicalKeys: storage.COPY_SOURCE_CHECK_KEYS,
         // セット商品の管理表のSKU欄が単品の品番のとき、その単品の行（楽天カタログID・ヤフーJANコードの比較用）
         representativeMatch: rules.findRepresentativeProductRow(managementMatch, state.managementWorkbook, state.productSheetConfigs),
+        // セット商品の構成品（単品）の行。楽天カタログIDに入れる、代表となる単品のJANコードの確認用
+        setComponentMatches: rules.findSetComponentRows(managementMatch, state.managementWorkbook, state.productSheetConfigs),
+        // 商品属性のメーカー型番に、他の商品の品番が入っていないかの確認用
+        partNumberContext: rules.buildPartNumberContext(managementMatch, state.managementWorkbook, state.productSheetConfigs),
         // セット商品のSKU・正規JANが、管理表の他の商品のSKUと重なっていないかの確認用
         findOtherProductBySku: (sku) => rules.findOtherProductBySku(sku, managementMatch, state.managementWorkbook, state.productSheetConfigs),
         // 説明文に管理表の車種名が入っているかの検査用（車種別タグ表の車種名。表が未読み込みなら空）
