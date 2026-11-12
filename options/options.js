@@ -268,7 +268,7 @@
     const s = rulesData.stats || {};
     return (
       `${prefix}: ${rulesData.fileName}（ジャンル${s.genreCount}件・グループ${s.groupCount}件、` +
-      `うちオレンジ項目のあるグループ${s.orangeGroupCount}件） / 読み込み日時: ${new Date(rulesData.importedAt).toLocaleString("ja-JP")}`
+      `うちオレンジ項目のあるグループ${s.orangeGroupCount}件${s.brandCount ? `、ブランド名${s.brandCount}件` : ""}） / 読み込み日時: ${new Date(rulesData.importedAt).toLocaleString("ja-JP")}`
     );
   }
 
@@ -482,6 +482,7 @@
         "楽天商品属性の必須項目",
         "楽天商品属性のオレンジ項目",
         "商品属性のメーカー型番",
+        "商品属性のブランド名",
         "楽天SKU別・商品属性の確認不可",
         "楽天SKU別・商品属性の登録後リマインド",
       ],

@@ -1258,12 +1258,20 @@
     setProgress(60, `「${SUBPAGE_TITLES[subpageType]}」の入力内容を確認中…`);
     await nextFrame();
     const parse = subpageType === "sku" ? subpages.parseSkuPage : subpages.parseGenrePage;
+    const companyCode = subpages.pageCompanyCode(document);
+    // 商品属性設定の「メーカー型番」「ブランド名」を、管理表の品番・メーカーと照合するための情報（管理表に無ければnull）
+    let partNumberContext = null;
+    if (subpageType === "genre" && companyCode && state.managementWorkbook && state.productSheetConfigs) {
+      const match = rules.findManagementRow(companyCode, state.managementWorkbook, state.productSheetConfigs);
+      partNumberContext = rules.buildPartNumberContext(match, state.managementWorkbook, state.productSheetConfigs, state.attributeRules && state.attributeRules.brands);
+    }
     const findings = rules.runSubpageChecks({
       subpageType,
       parsed: parse(document, null, { live: true }),
-      companyCode: subpages.pageCompanyCode(document),
+      companyCode,
       attributeRules: state.attributeRules,
       severityMap: state.severity,
+      partNumberContext,
     });
     if (!isLatestRun()) return;
     renderFindings(findings, currentFieldMap, {
@@ -1425,7 +1433,7 @@
         // セット商品の構成品（単品）の行。楽天カタログIDに入れる、代表となる単品のJANコードの確認用
         setComponentMatches: rules.findSetComponentRows(managementMatch, state.managementWorkbook, state.productSheetConfigs),
         // 商品属性のメーカー型番に、他の商品の品番が入っていないかの確認用
-        partNumberContext: rules.buildPartNumberContext(managementMatch, state.managementWorkbook, state.productSheetConfigs),
+        partNumberContext: rules.buildPartNumberContext(managementMatch, state.managementWorkbook, state.productSheetConfigs, state.attributeRules && state.attributeRules.brands),
         // セット商品のSKU・正規JANが、管理表の他の商品のSKUと重なっていないかの確認用
         findOtherProductBySku: (sku) => rules.findOtherProductBySku(sku, managementMatch, state.managementWorkbook, state.productSheetConfigs),
         // 説明文に管理表の車種名が入っているかの検査用（車種別タグ表の車種名。表が未読み込みなら空）
