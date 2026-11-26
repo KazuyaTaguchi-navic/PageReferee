@@ -418,10 +418,11 @@ body.hr-picker-active * {
   outline-offset: 1px;
 }
 
-/* モード切り替え（ページ作成／廃盤処理） */
+/* モード切り替え（ページ作成／廃盤処理／今季完売） */
 #hinban-referee-panel .hr-mode {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 6px 16px;
   margin-bottom: 8px;
   font-size: 13px;
 }
@@ -441,6 +442,12 @@ body.hr-picker-active * {
 }
 #hinban-referee-panel.hr-mode-discontinued .hr-header {
   background: rgba(120, 53, 15, 0.85);
+}
+#hinban-referee-panel.hr-mode-seasonal .hr-header {
+  background: rgba(15, 94, 89, 0.85);
+}
+#hinban-referee-panel.hr-mode-seasonal .hr-mode-badge {
+  background: #5eead4;
 }
 
 /* 車種別タグの検索 */

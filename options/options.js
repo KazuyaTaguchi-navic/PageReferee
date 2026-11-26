@@ -736,7 +736,7 @@
       : "登録ボタンのロックを無効にしました。";
   });
 
-  // ---------- ⑪ 廃盤処理モード ----------
+  // ---------- ⑪ 廃盤処理・今季完売処理モード ----------
 
   const discontinuedModeCheckbox = document.getElementById("discontinued-mode-enabled");
   const discontinuedModeStatus = document.getElementById("discontinued-mode-status");
@@ -744,8 +744,8 @@
   discontinuedModeCheckbox.addEventListener("change", async () => {
     await storage.setPatch({ discontinuedModeEnabled: discontinuedModeCheckbox.checked });
     discontinuedModeStatus.textContent = discontinuedModeCheckbox.checked
-      ? "廃盤処理モードを有効にしました。確認パネルに「ページ作成／廃盤処理」の切り替えが表示されます。"
-      : "廃盤処理モードを無効にしました。確認パネルは従来どおりページ作成の確認だけになります。";
+      ? "廃盤処理・今季完売処理モードを有効にしました。確認パネルに「ページ作成／廃盤処理／今季完売」の切り替えが表示されます。"
+      : "廃盤処理・今季完売処理モードを無効にしました。確認パネルは従来どおりページ作成の確認だけになります。";
   });
 
   // ---------- ⑩ エクスポート・インポート ----------

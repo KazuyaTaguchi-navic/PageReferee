@@ -60,7 +60,7 @@
 
   let currentFieldMap = storage.DEFAULT_FIELD_MAP;
   let currentSkuElements = [];
-  // 確認のモード（"create"=ページ作成 / "discontinued"=廃盤処理）。パネルを開くたびにページ作成から始まる
+  // 確認のモード（"create"=ページ作成 / "discontinued"=廃盤処理 / "seasonal"=今季完売処理）。パネルを開くたびにページ作成から始まる
   let currentMode = "create";
   let pickerActive = false;
   let pickerTargetKey = null;
@@ -371,6 +371,7 @@
       <div class="hr-mode" id="hr-mode" role="radiogroup" aria-label="モード" style="display:none;">
         <label class="hr-mode-opt"><input type="radio" name="hr-mode" value="create" checked> ページ作成</label>
         <label class="hr-mode-opt"><input type="radio" name="hr-mode" value="discontinued"> 廃盤処理</label>
+        <label class="hr-mode-opt"><input type="radio" name="hr-mode" value="seasonal"> 今季完売</label>
       </div>
       <div class="hr-actions">
         <button type="button" id="hr-btn-check" class="hr-btn-check">🔍 確認する</button>
@@ -1281,15 +1282,30 @@
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
 
-  // 廃盤処理モードの「確認する」。管理表・別画面は使わず、メイン画面の入力内容だけを確認する。
-  const DISCONTINUED_STATUS_TEXT = "廃盤処理モード: 管理表は使わず、廃盤処理で決まっている値になっているかを確認します";
+  // 廃盤処理・今季完売処理モードの「確認する」。管理表・別画面は使わず、メイン画面の入力内容だけを確認する。
+  const SPECIAL_MODES = {
+    discontinued: {
+      badge: "廃盤処理モード",
+      status: "廃盤処理モード: 管理表は使わず、廃盤処理で決まっている値になっているかを確認します",
+      subpageNotice: "廃盤処理の確認は、商品情報のメイン画面で行います。",
+      emptyMessage: "廃盤処理の設定はすべて正しくなっています 🎉",
+      runChecks: (domValues) => discontinued.runChecks(domValues),
+    },
+    seasonal: {
+      badge: "今季完売処理モード",
+      status: "今季完売処理モード: 管理表は使わず、今季完売処理で決まっている値になっているかを確認します",
+      subpageNotice: "今季完売処理の確認は、商品情報のメイン画面で行います。",
+      emptyMessage: "今季完売処理の設定はすべて正しくなっています 🎉",
+      runChecks: (domValues) => discontinued.runSeasonalChecks(domValues),
+    },
+  };
 
-  async function runDiscontinuedCheck(isLatestRun) {
+  async function runSpecialModeCheck(modeInfo, isLatestRun) {
     setProgress(40, "ページの入力内容を取得中…");
     await nextFrame();
-    const findings = discontinued.runChecks(collectDomValues(currentFieldMap));
+    const findings = modeInfo.runChecks(collectDomValues(currentFieldMap));
     if (!isLatestRun()) return;
-    renderFindings(findings, currentFieldMap, { emptyMessage: "廃盤処理の設定はすべて正しくなっています 🎉" });
+    renderFindings(findings, currentFieldMap, { emptyMessage: modeInfo.emptyMessage });
     renderVehicleTagStatus(null);
     setProgress(100, "完了");
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -1327,15 +1343,16 @@
       registerGuard.enabled = !!state.registerLockEnabled;
       applyModeAvailability(!!state.discontinuedModeEnabled);
 
-      if (currentMode === "discontinued") {
-        // 廃盤処理では登録ボタンのロックと実績ログは使わない
+      const specialMode = SPECIAL_MODES[currentMode];
+      if (specialMode) {
+        // 廃盤処理・今季完売処理では登録ボタンのロックと実績ログは使わない
         registerGuard.enabled = false;
-        panel.querySelector("#hr-datastatus").textContent = DISCONTINUED_STATUS_TEXT;
+        panel.querySelector("#hr-datastatus").textContent = specialMode.status;
         if (subpages.detectSubpageType(document)) {
-          renderNotice("廃盤処理の確認は、商品情報のメイン画面で行います。");
+          renderNotice(specialMode.subpageNotice);
           return;
         }
-        await runDiscontinuedCheck(isLatestRun);
+        await runSpecialModeCheck(specialMode, isLatestRun);
         return;
       }
 
@@ -1551,7 +1568,7 @@
     });
   });
 
-  // ---------- モード切り替え（ページ作成／廃盤処理） ----------
+  // ---------- モード切り替え（ページ作成／廃盤処理／今季完売） ----------
   // 設定⑪（廃盤処理モード）がOFFのときは切り替えを出さず、ページ作成のままにする。
   // 廃盤処理に切り替えている最中にOFFにされた場合も、ページ作成に戻す。
   function applyModeAvailability(enabled) {
@@ -1576,17 +1593,20 @@
 
   function setMode(mode) {
     currentMode = mode;
-    const isDiscontinued = mode === "discontinued";
-    panel.classList.toggle("hr-mode-discontinued", isDiscontinued);
-    panel.querySelector("#hr-mode-badge").style.display = isDiscontinued ? "inline-block" : "none";
-    panel.querySelector("#hr-tag-search").style.display = isDiscontinued ? "none" : "";
+    const specialMode = SPECIAL_MODES[mode];
+    panel.classList.toggle("hr-mode-discontinued", mode === "discontinued");
+    panel.classList.toggle("hr-mode-seasonal", mode === "seasonal");
+    const badge = panel.querySelector("#hr-mode-badge");
+    if (specialMode) badge.textContent = specialMode.badge;
+    badge.style.display = specialMode ? "inline-block" : "none";
+    panel.querySelector("#hr-tag-search").style.display = specialMode ? "none" : "";
     updateTagSearchingState();
     // 前のモードの結果が残ったままだと取り違えるので消す
     panel.querySelector("#hr-summary").style.display = "none";
     panel.querySelector("#hr-findings").innerHTML = "";
     renderVehicleTagStatus(null);
-    if (isDiscontinued) {
-      panel.querySelector("#hr-datastatus").textContent = DISCONTINUED_STATUS_TEXT;
+    if (specialMode) {
+      panel.querySelector("#hr-datastatus").textContent = specialMode.status;
     } else {
       storage.getAll().then(renderDataStatus).catch((err) => console.error("[ページレフェリー] 読み込み状況の表示に失敗しました", err));
     }
@@ -1606,7 +1626,7 @@
   // 設定でロックがONの会社では登録をブロックする、というシンプルな設計にしている。
   function handleRegisterGuardClick(e) {
     if (!registerGuard.enabled) return;
-    if (currentMode === "discontinued") return;
+    if (currentMode !== "create") return;
     // 拡張機能が無効化・削除・更新された場合、chrome.runtimeは使えなくなるがこの
     // クリックリスナー自体はページに残り続け、開き直すまで動き続けてしまう
     // （sankei-se-5261rl-setの登録がロックされたまま拡張機能を削除しても解除できなかった
